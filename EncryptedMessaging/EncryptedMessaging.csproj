@@ -1,0 +1,148 @@
+﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<Version>$([System.DateTime]::Now.ToString("1.MM.dd"))</Version>
+		<FileUpgradeFlags>
+		</FileUpgradeFlags>
+		<UpgradeBackupLocation>
+		</UpgradeBackupLocation>
+		<OldToolsVersion>2.0</OldToolsVersion>
+		<Configurations>DEBUG_A;DEBUG_B;Debug;DEBUG_ALI;DEBUG_MUS;DEBUG_FAI;DEBUG_ZUB;DEBUG_AND;DEBUG_RAM;rDebug;Release;DEBUG_RAM_SOCIAL</Configurations>
+		<NeutralLanguage>en</NeutralLanguage>
+		<DebugType>portable</DebugType>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<AnalysisLevel>latest-recommended</AnalysisLevel>
+		<Description>Our mission is to exacerbate the concept of security in messaging and create something conceptually new and innovative from a technical point of view. Top-level encrypted communication (there is no backend , there is no server-side contact list, there is no server but a simple router, the theory is that if the server does not exist then the server cannot be hacked, the communication is anonymous, the IDs are derived from a hash of the public keys, therefore in no case it is possible to trace who originates the messages, the encryption key is changed for each single message, and a system of digital signatures guarantees the origin of the messages and prevents attacks "men in de middle"). We use different concepts introduced with Bitcoin technology and the library itself: there are no accounts, the account is simply a pair of public and private keys, groups are also supported, the group ID is derived from a hash computed through the public keys of the members, since the hash process is irreversible, the level of anonymity is maximum). The publication of the source wants to demonstrate the genuineness of the concepts we have adopted! Thanks for your attention!</Description>
+		<PackageProjectUrl>https://github.com/BitBoxLab-OU/Crypto-Messenger</PackageProjectUrl>
+		<PackageTags>Messaging engine, encrypted messaging software, signal type engine, telegram, whatsapp, bitcoin. cryptography, tcp, socket, chat</PackageTags>
+		<PackageLicenseExpression>GFDL-1.3-only</PackageLicenseExpression>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_A|AnyCPU'">
+		<DebugType></DebugType>
+		<DefineConstants>DEBUG;DEBUG_A;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_B|AnyCPU'">
+		<DefineConstants>DEBUG;DEBUG_B</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+		<WarningLevel>0</WarningLevel>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_ALI|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_MUS|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_FAI|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_ZUB|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_AND|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_RAM_SOCIAL|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_RAM|AnyCPU'">
+		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='rDebug|AnyCPU'">
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+		<DebugSymbols>false</DebugSymbols>
+		<DebugType>portable</DebugType>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="Properties\**" />
+		<EmbeddedResource Remove="Properties\**" />
+		<None Remove="Properties\**" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Remove="Cloud.cs" />
+		<Compile Remove="ProcessResponsesFromCloud.cs" />
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="CommunicationChannel" Version="1.12.20" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\CommunicationChannel\CommunicationChannel.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Reference Include="AntiGitLibrary">
+			<HintPath>WesternDigital.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Update="Resources\Dictionary.de.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Dictionary.de.resx</DependentUpon>
+		</Compile>
+		<Compile Update="Resources\dictionary.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Dictionary.resx</DependentUpon>
+		</Compile>
+		<Compile Update="Resources\Dictionary.es.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Dictionary.es.resx</DependentUpon>
+		</Compile>
+		<Compile Update="Resources\Dictionary.fr.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Dictionary.fr.resx</DependentUpon>
+		</Compile>
+		<Compile Update="Resources\Dictionary.it.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Dictionary.it.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Update="Resources\Dictionary.resx">
+			<Generator>PublicResXFileCodeGenerator</Generator>
+			<LastGenOutput>Dictionary.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+		<EmbeddedResource Update="Resources\Dictionary.de.resx">
+			<Generator>PublicResXFileCodeGenerator</Generator>
+			<LastGenOutput>Dictionary.de.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+		<EmbeddedResource Update="Resources\Dictionary.es.resx">
+			<Generator>PublicResXFileCodeGenerator</Generator>
+			<LastGenOutput>Dictionary.es.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+		<EmbeddedResource Update="Resources\Dictionary.fr.resx">
+			<Generator>PublicResXFileCodeGenerator</Generator>
+			<LastGenOutput>Dictionary.fr.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+		<EmbeddedResource Update="Resources\Dictionary.it.resx">
+			<Generator>PublicResXFileCodeGenerator</Generator>
+			<LastGenOutput>Dictionary.it.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+	<PropertyGroup>
+		<GenerateNuspecDependsOn>$(GenerateNuspecDependsOn);SetPackageVersion</GenerateNuspecDependsOn>
+	</PropertyGroup>
+
+	<Target Name="SetPackageVersion" DependsOnTargets="Build">
+		<PropertyGroup>
+			<!-- <PackageVersion>$([System.DateTime]::Now.ToString(&quot;yyyy.MM.dd.HHmmss&quot;))</PackageVersion> -->
+			<!-- You can customize the format and the rule about how version increases here. -->
+			<PackageVersion>$([System.DateTime]::Now.ToString("1.MM.dd"))</PackageVersion>
+		</PropertyGroup>
+	</Target>
+
+</Project>
