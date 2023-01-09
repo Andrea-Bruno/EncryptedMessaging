@@ -278,7 +278,7 @@ namespace EncryptedMessaging
                 LoginToServer(@params.DirectlyWithoutSpooler, @params.ToContact);
             }
 
-            if (!Context.InternetAccess)
+            if (Context.InternetAccess != true)
             {
                 // The status of the Internet connection may not correspond to reality, so let's try a ping to verify it, in order to update the current status if necessary
                 if (!AlreadyTrySwitchOnConnectivity)
@@ -551,7 +551,7 @@ namespace EncryptedMessaging
         /// <param name="toContact">The recipient</param>
         internal void SendLastReading(Contact toContact)
         {
-            SendMessage(MessageType.LastReading, Converter.ToUnixTimestamp(Time.CurrentTimeGMT).GetBytes(), toContact);
+            SendMessage(MessageType.LastReading, Converter.ToUnixTimestamp(Time.GetCurrentTimeGMT(out _)).GetBytes(), toContact);
         }
 
         /// <summary>

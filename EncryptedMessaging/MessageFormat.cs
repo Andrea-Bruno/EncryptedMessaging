@@ -84,7 +84,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Unique identification number of the chat.
         /// </summary>
-        public  ulong ChatId { get; private set; }
+        public ulong ChatId { get; private set; }
         internal readonly byte[] Author;
         /// <summary>
         /// This array is the identifier of the chat participant.
@@ -204,7 +204,7 @@ namespace EncryptedMessaging
             byte[] data;
             if (GetSubApplicationCommandWithData(out appId, out command, out data))
             {
-                parameters = new List<byte[]> { data};
+                parameters = new List<byte[]> { data };
                 return true;
             }
             parameters = new List<byte[]>();
@@ -278,11 +278,11 @@ namespace EncryptedMessaging
             {
                 var author = Context.Contacts.GetContactByUserID(AuthorId);
                 if (author?.TranslationOfMessages == true)
-                    return Context.SecureStorage.ObjectStorage.LoadObject(typeof(string), "t" + PostId) as string;
+                    return Context.SecureStorage.Values.Get("t" + PostId, null);
 
                 return null;
             }
-            set => Context.SecureStorage.ObjectStorage.SaveObject(value, "t" + PostId);
+            set => Context.SecureStorage.Values.Set("t" + PostId, value);
         }
     }
 
@@ -612,7 +612,7 @@ namespace EncryptedMessaging
             var version = 1;
             if (!encrypted)
                 version |= 0b10000000; // This bit indicates that the message is not encrypted
-            var unixTimestamp = ToUnixTimestamp(Time.CurrentTimeGMT);
+            var unixTimestamp = ToUnixTimestamp(Time.GetCurrentTimeGMT(out _));
             creationDate = FromUnixTimestamp(unixTimestamp);
             if (replyToPostId != null) //Replication messages have some additional information that is added to the beginning of the data (message type and the id of the post being replied to)
             {
