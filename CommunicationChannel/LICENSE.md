@@ -1,4 +1,4 @@
-BitBoxLab License 1.0
+Andrea Bruno License 1.0
 
 License and terms and conditions of use:
 

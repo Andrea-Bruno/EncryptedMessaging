@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
-		<Version>$([System.DateTime]::Now.ToString("1.MM.dd"))</Version>
+		<Version>$([System.DateTime]::Now.ToString("1.yy.MM.dd"))</Version>
 		<FileUpgradeFlags>
 		</FileUpgradeFlags>
 		<UpgradeBackupLocation>
@@ -74,9 +74,6 @@
 		<Compile Remove="ProcessResponsesFromCloud.cs" />
 	</ItemGroup>
 	<ItemGroup>
-	  <PackageReference Include="CommunicationChannel" Version="1.12.20" />
-	</ItemGroup>
-	<ItemGroup>
 	  <ProjectReference Include="..\CommunicationChannel\CommunicationChannel.csproj" />
 	</ItemGroup>
 	<ItemGroup>
@@ -141,7 +138,7 @@
 		<PropertyGroup>
 			<!-- <PackageVersion>$([System.DateTime]::Now.ToString(&quot;yyyy.MM.dd.HHmmss&quot;))</PackageVersion> -->
 			<!-- You can customize the format and the rule about how version increases here. -->
-			<PackageVersion>$([System.DateTime]::Now.ToString("1.MM.dd"))</PackageVersion>
+			<PackageVersion>$([System.DateTime]::Now.ToString("1.yy.MM.dd"))</PackageVersion>
 		</PropertyGroup>
 	</Target>
 

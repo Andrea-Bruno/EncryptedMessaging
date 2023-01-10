@@ -389,6 +389,7 @@ namespace EncryptedMessaging
             Dispose(true);
         }
 
+
         private bool _disposed;
 
         /// <summary>
