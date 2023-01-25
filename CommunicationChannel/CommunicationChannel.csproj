@@ -7,10 +7,9 @@
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 		<Description>TCP socket communication library with the server that has professional features such as maintenance of a spooler, verification of connection persistence, automatic restoration of the connection timed out, a ping system with the server, the ability to route messages to multiple recipients through a router. The library works perfectly on both server (iOS, Windows, Apple) and mobile (Android and iOS) platforms.</Description>
 		<Copyright>Andrea Bruno</Copyright>
-		<PackageProjectUrl>https://github.com/BitBoxLab-OU/Crypto-Messenger/tree/main/CommunicationChannel</PackageProjectUrl>
+		<PackageProjectUrl>https://www.nuget.org/packages/CommunicationChannel/</PackageProjectUrl>
 		<PackageTags>tcp, socket, spooler, connection, client server, data transfer, protocol</PackageTags>
 		<PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-		<PackageLicenseExpression>GFDL-1.3-only</PackageLicenseExpression>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_A|AnyCPU'">
@@ -60,6 +59,9 @@
 	<PropertyGroup>
 		<GenerateNuspecDependsOn>$(GenerateNuspecDependsOn);SetPackageVersion</GenerateNuspecDependsOn>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+		<RepositoryUrl>https://github.com/Andrea-Bruno/EncryptedMessaging/tree/master/CommunicationChannel</RepositoryUrl>
 	</PropertyGroup>
 
 	<Target Name="SetPackageVersion" DependsOnTargets="Build">
@@ -72,6 +74,17 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\..\SecureStorage\SecureStorage.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="LICENSE.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 
 </Project>

@@ -232,8 +232,7 @@ namespace CommunicationChannel
             {
                 if (!IsConnected() && InternetAccess)
                 {
-                    ;
-                    StartLinger(443, out var exception);
+                    StartLinger(5222, out var exception);
                     if (exception != null)
                     {
                         Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
@@ -275,16 +274,7 @@ namespace CommunicationChannel
             exception = null;
             try
             {
-
-                IPAddress ip = null; // =  { IPAddress.Parse(Channel.ServerUri.Host) };
-
                 var addresses = Dns.GetHostAddresses(Channel.ServerUri.Host).Reverse().ToArray();
-                //if (addresses?.Length >= 1)
-                //{
-                //    ip = addresses[0];
-                //}
-
-
                 try
                 {
                     Client = new TcpClient

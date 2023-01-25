@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using EncryptedMessaging.Resources;
@@ -425,14 +426,14 @@ namespace EncryptedMessaging
         private static bool _pingDisallow;
         internal static void TrySwitchOnConnectivityByPing(Uri serverUri)
         {
-            if (Context.InternetAccess == false && _pingDisallow == false)
+            if (Context.CurrentConnectivity == false && _pingDisallow == false)
             {
                 if (PingHost(serverUri))
                     Context.OnConnectivityChange(true);
                 else
                     _pingDisallow = true;
             }
-            if (Context.InternetAccess == true)
+            if (Context.CurrentConnectivity == true)
                 _pingDisallow = false;
         }
 
@@ -450,18 +451,25 @@ namespace EncryptedMessaging
         /// </summary>
         /// <param name="command">Command to execute</param>
         /// <param name="parameters">Parameters</param>
+        /// <param name="useShellExecute">True if the shell should be used when starting the process; false if the process should be created directly from the executable file.</param>
         /// <returns>Result of command if the command generates an output</returns>
-        internal static string ExecuteCommand(string command, string parameters)
+        internal static string ExecuteCommand(string command, string parameters, bool useShellExecute = false)
         {
             Process process = new Process();
             process.StartInfo.FileName = command;
             process.StartInfo.Arguments = parameters; // Note the /c command (*)
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.UseShellExecute = useShellExecute;
+            process.StartInfo.RedirectStandardOutput = !useShellExecute;
+            process.StartInfo.CreateNoWindow = true;
+            //if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            //    process.StartInfo.Verb = "runas";
             process.Start();
-            //* Read the output (or the error)
+            if (useShellExecute)
+            {
+                process.WaitForExit();
+                return null;
+            }
             string output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
             return output;
         }
     }

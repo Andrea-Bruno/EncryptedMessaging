@@ -79,7 +79,7 @@ public static class Bytes
     /// <summary>
     /// Join data packets
     /// </summary>
-    /// <param name="data"> packages to join<</param>
+    /// <param name="data"> packages to join</param>
     /// <param name="values"></param>
     /// <returns>Byte array splittable</returns>
     public static byte[] Join(this byte[] data, params byte[][] values)

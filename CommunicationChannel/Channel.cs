@@ -44,7 +44,7 @@ namespace CommunicationChannel
         }
         internal readonly Tuple<ulong, Func<byte[], byte[]>> LicenseActivator;
         private static readonly List<Channel> Channels = new List<Channel>();
-        internal readonly Func<bool> ContextIsReady;
+        internal readonly Func<bool> ContextIsReady = null;
         internal static readonly IsolatedStorageFile IsoStoreage = IsolatedStorageFile.GetStore(IsolatedStorageScope.User | IsolatedStorageScope.Assembly | IsolatedStorageScope.Domain, null, null);
         internal readonly AntiDuplicate AntiDuplicate;
         internal readonly int ConnectionTimeout = Timeout.Infinite;
@@ -239,29 +239,40 @@ namespace CommunicationChannel
         public ulong KeepAliveFailures { get; internal set; }
         //=================================================================================================
 
+        private bool _Internet = false;
+        private bool Internet
+        {
+            set
+            {
+                if (_Internet != value)
+                {
+                    _Internet = value;
+                    if (value)
+                        Tcp.Connect();
+                    else
+                        Tcp.Disconnect(false);
+                }
+            }
+        }
 
-        private static bool _internetAccess;
+        private static bool _InternetAccess;
+
         /// <summary>
         /// Check internet access.
         /// </summary>
         public static bool InternetAccess
         {
-            get => _internetAccess;
+            get => _InternetAccess;
             set
             {
-                if (_internetAccess != value)
+                _InternetAccess = value;
+                lock (Channels)
                 {
-                    _internetAccess = value;
-                    lock (Channels)
-                    {
-                        if (_internetAccess)
-                            Channels.ForEach(channel => channel.Tcp.Connect());
-                        else
-                            Channels.ForEach(channel => channel.Tcp.Disconnect(false));
-                    }
+                    Channels.ForEach(channel => channel.Internet = _InternetAccess);
                 }
             }
         }
+
         internal ErrorType Status;
         internal readonly Action<ulong, byte[]> OnMessageArrives;
         private static bool SplitAllPosts(byte[] data, out List<byte[]> posts)

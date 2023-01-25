@@ -41,7 +41,7 @@ namespace EncryptedMessaging
         {
             var webs = new[] {
                 new Uri("http://108.59.14.4"), // timeanddate.com
-                new Uri("http://192.64.113.82"), // time-zone.org
+                new Uri("http://17.253.144.10"), // apple.com
                 new Uri("http://208.80.154.224"), // wikipedia.org
                 new Uri("http://3.13.31.214"), // linuxfoundation.org
                 new Uri("http://142.251.35.174"), // google.com
@@ -82,15 +82,16 @@ namespace EncryptedMessaging
                 }
                 catch
                 {
-                    Debugger.Break();
                     // ignored
                 }
                 return null;
             }
         }
-
+        private const int TolleranceSec = 2;
         private static bool UpdateSystemDate(DateTime newDateTimeUtc)
         {
+            var currentDelta = Math.Abs((newDateTimeUtc - DateTime.UtcNow).TotalSeconds);
+            if (currentDelta < TolleranceSec) { return true; }
             var newDateTime = newDateTimeUtc.ToLocalTime();
             try
             {
@@ -102,8 +103,8 @@ namespace EncryptedMessaging
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     // https://stackoverflow.com/questions/15878810/how-to-execute-command-on-cmd-from-c-sharp
-                    Functions.ExecuteCommand("cmd.exe", "/C date " + newDateTime.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture));
-                    Functions.ExecuteCommand("cmd.exe", "/C time " + newDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture));
+                    Functions.ExecuteCommand("cmd.exe", "/C date " + newDateTime.ToString( "d"), true);
+                    Functions.ExecuteCommand("cmd.exe", "/C time " + newDateTime.ToString("T"), true);
                 }
             }
             catch (Exception ex)
@@ -111,7 +112,7 @@ namespace EncryptedMessaging
                 Console.WriteLine("The system does not support updating the date and time, you probably need to run the administrator application!");
             }
             var sec = Math.Abs((newDateTimeUtc - DateTime.UtcNow).TotalSeconds);
-            return sec < 2;
+            return sec < TolleranceSec;
         }
     }
 }

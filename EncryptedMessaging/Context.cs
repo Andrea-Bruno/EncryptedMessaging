@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -74,6 +75,17 @@ namespace EncryptedMessaging
         /// <param name="instanceId">If you want to initialize multiple instances of this component, a unique id must be assigned, if not assigned a progressive id will be assigned automatically. This value allows the recovery of the saved key when the application is restarted</param>
         public Context(string entryPoint, string networkName = "testnet", bool multipleChatModes = false, string privateKeyOrPassphrase = null, Modality modality = Modality.Client, bool? internetAccess = null, Action<Action> invokeOnMainThread = null, Func<string, string> getSecureKeyValue = null, Storage.SetKeyValueSecure setSecureKeyValue = null, Func<string> getFirebaseToken = null, Func<string> getAppleDeviceToken = null, string cloudPath = null, OEM licenseActivator = null, string instanceId = null)
         {
+            try
+            {
+                EntryPoint = new UriBuilder(entryPoint).Uri;
+            }
+            catch (Exception inner)
+            {
+                var ex = new Exception("Invalid or empty entry point", inner);
+                Console.WriteLine(ex.Message);
+                throw ex;
+            }
+            _lastEntryPoint = EntryPoint;
             Contexts.Add(this);
             if (instanceId == null)
             {
@@ -88,17 +100,6 @@ namespace EncryptedMessaging
                 tmpInternetAccess = internetAccess;
 
             //Cloud.ReceiveCloudCommands.SetCustomPath(cloudPath, isServer);
-            try
-            {
-                EntryPoint = new UriBuilder(entryPoint).Uri;
-            }
-            catch (Exception inner)
-            {
-                var ex = new Exception("Invalid or empty entry point", inner);
-                Console.WriteLine(ex.Message);
-                throw ex;
-            }
-            _lastEntryPoint = EntryPoint;
             var runtimePlatform = Contact.RuntimePlatform.Undefined;
 
             var platform = Environment.OSVersion.Platform;
@@ -292,7 +293,6 @@ namespace EncryptedMessaging
 #if DEBUG
             AfterInstanceThread = Thread.CurrentThread;
 #endif
-            Thread.CurrentThread.Priority = ThreadPriority.Highest;
             Contacts.LoadContacts(IsRestored);
 #if DEBUG
             AfterInstanceThread = null;
@@ -303,8 +303,10 @@ namespace EncryptedMessaging
                 NetworkChange.NetworkAvailabilityChanged += (sender, e) => OnConnectivityChange(e.IsAvailable);
             }
             IsInitialized = true;
-            OnConnectivityChange(tmpInternetAccess ?? NetworkInterface.GetIsNetworkAvailable());
-            // Put here only instructions that send messages
+            lock (Contexts)
+            {
+                SetConnectivity(tmpInternetAccess ?? CurrentConnectivity ?? NetworkInterface.GetIsNetworkAvailable());
+            }
 #if DEBUG_RAM
             //Contacts.RestoreMyContactFromCloud();
 #endif
@@ -338,7 +340,10 @@ namespace EncryptedMessaging
 
         private static readonly List<Context> Contexts = new List<Context>();
 
-        internal static bool? InternetAccess;
+        /// <summary>
+        /// Indicates if there is internet access
+        /// </summary>
+        internal static bool? CurrentConnectivity;
 
         private static Uri _lastEntryPoint;
         /// <summary>
@@ -355,29 +360,39 @@ namespace EncryptedMessaging
         {
             lock (Contexts)
             {
-                if (connectivity == LastConnectivity) return;
-                if (connectivity)
-                {
-                    // Since the clock setting requires internet, this call also verifies if there really is an internet connection
-                    Time.GetCurrentTimeGMT(out bool internetConnectionError);
-                    connectivity = !internetConnectionError;
-                }
-                LastConnectivity = connectivity;
-                if (connectivity)
-                {
-                    foreach (var context in Contexts)
-                    {
-                        if (context.IsInitialized)
-                        {
-                            context.Messaging.SendMessagesInQueue();
-                        }
-                    }
-                }
-                InternetAccess = connectivity;
-                Channel.InternetAccess = InternetAccess == true;
+                if (connectivity == CurrentConnectivity) return;
             }
         }
-        private static bool LastConnectivity;
+
+        private static void SetConnectivity(bool connectivity)
+        {
+            if (connectivity)
+            {
+                // Since the clock setting requires internet, this call also verifies if there really is an internet connection
+                Time.GetCurrentTimeGMT(out bool internetConnectionError);
+                if (internetConnectionError)
+                {
+                    // Automatically recheck the connection in one minute (teset the timer)
+                    CheckConnectivity.Change(Timeout.Infinite, Timeout.Infinite);
+                    CheckConnectivity.Change(60000, Timeout.Infinite);
+                }
+                connectivity = !internetConnectionError;
+            }
+            if (connectivity)
+            {
+                foreach (var context in Contexts)
+                {
+                    if (context.IsInitialized)
+                    {
+                        context.Messaging.SendMessagesInQueue();
+                    }
+                }
+            }
+            CurrentConnectivity = connectivity;
+            Channel.InternetAccess = CurrentConnectivity == true;
+        }
+
+        private static Timer CheckConnectivity = new Timer((o) => { OnConnectivityChange(true); }, null, Timeout.Infinite, Timeout.Infinite);
         private static readonly Dictionary<Guid, int> Counter = new Dictionary<Guid, int>();
         internal readonly Contact.RuntimePlatform RuntimePlatform;
 

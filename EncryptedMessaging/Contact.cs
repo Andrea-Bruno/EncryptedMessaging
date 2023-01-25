@@ -253,7 +253,7 @@ namespace EncryptedMessaging
             MessageContainerUI = null;
             if (Context.Messaging.MultipleChatModes)
             {
-                LastPostReaded = Context.Repository.ReadPosts(ChatId, receprionAntecedent: LastPostReaded);
+                LastPostReaded = Context.Repository.ReadPosts(ChatId, receptionAntecedent: LastPostReaded);
             }
         }
         /// <summary>
@@ -271,11 +271,11 @@ namespace EncryptedMessaging
         /// <param name="context">Context</param>
         /// <param name="exportAction">Action that will be performed for each post (If you want to back up put the backup execution code here)</param>
         /// <param name="exclude">List of posts to exclude using the received date as a filter. It is recommended to use this parameter to avoid exporting posts that have already been exported in the past</param>
-        /// <param name="receprionAntecedent">If set, consider only posts that are dated before the value indicated. It is useful for paginating messages in the chat view, or for telling the loading of messages in blocks. How to use this parameter: You need to store the date of the oldest message that is displayed in the chat, when you want to load a second block of messages you have to pass this date in order to get the next block</param>
+        /// <param name="receptionAntecedent">If set, consider only posts that are dated before the value indicated. It is useful for paginating messages in the chat view, or for telling the loading of messages in blocks. How to use this parameter: You need to store the date of the oldest message that is displayed in the chat, when you want to load a second block of messages you have to pass this date in order to get the next block</param>
         /// <param name="take">Limit the number of messages to take (set this value to paginate messages in chunks), in case you don't want the whole message list. Pass null to process all posts, without any paging!</param>
-        public static void ExportPosts(Context context, PostBackup exportAction, List<DateTime> exclude, DateTime receprionAntecedent = default, int? take = null)
+        public static void ExportPosts(Context context, PostBackup exportAction, List<DateTime> exclude, DateTime receptionAntecedent = default, int? take = null)
         {
-            context.Contacts.ForEachContact(contact => contact.GetPosts((post, receptionDate) => exportAction(contact.ChatId, post, receptionDate), exclude, receprionAntecedent, take));
+            context.Contacts.ForEachContact(contact => contact.GetPosts((post, receptionDate) => exportAction(contact.ChatId, post, receptionDate), exclude, receptionAntecedent, take));
         }
 
         /// <summary>
@@ -283,14 +283,14 @@ namespace EncryptedMessaging
         /// </summary>
         /// <param name="action">Action to be performed for each post, the byte[] is binary data of the encrypted post that is read from the repository, DateTime is the time the post was received which you can use as a unique ID (you can use the ticks property of DateTime as a unique id ) </param>
         /// <param name="exclude">List of posts to exclude using the received date as a filter. It is recommended to use this parameter to avoid exporting posts that have already been exported in the past</param>
-        /// <param name="receprionAntecedent">If set, consider only posts that are dated before the value indicated. It is useful for paginating messages in the chat view, or for telling the loading of messages in blocks. How to use this parameter: You need to store the date of the oldest message that is displayed in the chat, when you want to load a second block of messages you have to pass this date in order to get the next block</param>
+        /// <param name="receptionAntecedent">If set, consider only posts that are dated before the value indicated. It is useful for paginating messages in the chat view, or for telling the loading of messages in blocks. How to use this parameter: You need to store the date of the oldest message that is displayed in the chat, when you want to load a second block of messages you have to pass this date in order to get the next block</param>
         /// <param name="take">Limit the number of messages to take (set this value to paginate messages in chunks), in case you don't want the whole message list. Pass null to process all posts, without any paging!</param>
-        /// <returns>Returns the date of arrival of the oldest message processed by the function. Use this value to page further requests by passing the "receprionAntecedent" parameter</returns>
-        public DateTime GetPosts(Action<byte[], DateTime> action, List<DateTime> exclude = null, DateTime receprionAntecedent = default, int? take = null)
+        /// <returns>Returns the date of arrival of the oldest message processed by the function. Use this value to page further requests by passing the "receptionAntecedent" parameter</returns>
+        public DateTime GetPosts(Action<byte[], DateTime> action, List<DateTime> exclude = null, DateTime receptionAntecedent = default, int? take = null)
         {
             if (take == null) // If null then get all messages
                 take = Context.Setting.KeepPost;
-            return Context.Repository.ReadPosts(ChatId, action, receprionAntecedent, take, exclude);
+            return Context.Repository.ReadPosts(ChatId, action, receptionAntecedent, take, exclude);
         }
 
         /// <summary>
@@ -308,13 +308,13 @@ namespace EncryptedMessaging
         /// </summary>
         /// <param name="actionToExecuteForEachMessage">Action that is performed for each message (use this action to export or process messages).</param>
         /// <param name="exclude">List of id messages to exclude (The reception time is used as an identifier)</param>
-        /// <param name="receprionAntecedent">Filter messages considering only those prior to a certain date (useful for paging messages in blocks)</param>
+        /// <param name="receptionAntecedent">Filter messages considering only those prior to a certain date (useful for paging messages in blocks)</param>
         /// <param name="take">Limit the number of messages to take. If not set, the value set in the Context.Setting.MessagePagination settings will be used. Pass the Context.Setting.KeepPost value to process all messages!</param>
-        /// <returns>Returns the date of arrival of the oldest message processed by the function. Use this value to page further requests by passing the "receprionAntecedent" parameter.</returns>
-        public DateTime GetMessages(Action<Message, bool> actionToExecuteForEachMessage, List<DateTime> exclude = null, DateTime receprionAntecedent = default, int? take = null)
+        /// <returns>Returns the date of arrival of the oldest message processed by the function. Use this value to page further requests by passing the "receptionAntecedent" parameter.</returns>
+        public DateTime GetMessages(Action<Message, bool> actionToExecuteForEachMessage, List<DateTime> exclude = null, DateTime receptionAntecedent = default, int? take = null)
         {
             void onPost(byte[] dataPost, DateTime receptionTime) => Context.Messaging.ShowPost(dataPost, ChatId, receptionTime, actionToExecuteForEachMessage); // He converted the post (encrypted) into a message           
-            return Context.Repository.ReadPosts(ChatId, onPost, receprionAntecedent, take, exclude);
+            return Context.Repository.ReadPosts(ChatId, onPost, receptionAntecedent, take, exclude);
         }
 
         /// <summary>

@@ -278,7 +278,7 @@ namespace EncryptedMessaging
                 LoginToServer(@params.DirectlyWithoutSpooler, @params.ToContact);
             }
 
-            if (Context.InternetAccess != true)
+            if (Context.CurrentConnectivity != true)
             {
                 // The status of the Internet connection may not correspond to reality, so let's try a ping to verify it, in order to update the current status if necessary
                 if (!AlreadyTrySwitchOnConnectivity)

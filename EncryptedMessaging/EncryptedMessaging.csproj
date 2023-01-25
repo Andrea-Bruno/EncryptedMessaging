@@ -13,9 +13,8 @@
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<AnalysisLevel>latest-recommended</AnalysisLevel>
 		<Description>Our mission is to exacerbate the concept of security in messaging and create something conceptually new and innovative from a technical point of view. Top-level encrypted communication (there is no backend , there is no server-side contact list, there is no server but a simple router, the theory is that if the server does not exist then the server cannot be hacked, the communication is anonymous, the IDs are derived from a hash of the public keys, therefore in no case it is possible to trace who originates the messages, the encryption key is changed for each single message, and a system of digital signatures guarantees the origin of the messages and prevents attacks "men in de middle"). We use different concepts introduced with Bitcoin technology and the library itself: there are no accounts, the account is simply a pair of public and private keys, groups are also supported, the group ID is derived from a hash computed through the public keys of the members, since the hash process is irreversible, the level of anonymity is maximum). The publication of the source wants to demonstrate the genuineness of the concepts we have adopted! Thanks for your attention!</Description>
-		<PackageProjectUrl>https://github.com/BitBoxLab-OU/Crypto-Messenger</PackageProjectUrl>
+		<PackageProjectUrl>https://www.nuget.org/packages/EncryptedMessaging/</PackageProjectUrl>
 		<PackageTags>Messaging engine, encrypted messaging software, signal type engine, telegram, whatsapp, bitcoin. cryptography, tcp, socket, chat</PackageTags>
-		<PackageLicenseExpression>GFDL-1.3-only</PackageLicenseExpression>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_A|AnyCPU'">
 		<DebugType></DebugType>
@@ -77,11 +76,6 @@
 	  <ProjectReference Include="..\CommunicationChannel\CommunicationChannel.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<Reference Include="AntiGitLibrary">
-			<HintPath>WesternDigital.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-	<ItemGroup>
 		<Compile Update="Resources\Dictionary.de.Designer.cs">
 			<DesignTime>True</DesignTime>
 			<AutoGen>True</AutoGen>
@@ -130,8 +124,22 @@
 			<LastGenOutput>Dictionary.it.Designer.cs</LastGenOutput>
 		</EmbeddedResource>
 	</ItemGroup>
+	<ItemGroup>
+	  <None Update="LICENSE.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
 	<PropertyGroup>
 		<GenerateNuspecDependsOn>$(GenerateNuspecDependsOn);SetPackageVersion</GenerateNuspecDependsOn>
+		<Copyright>Andrea Bruno</Copyright>
+		<RepositoryUrl>https://github.com/Andrea-Bruno/EncryptedMessaging/tree/master/EncryptedMessaging</RepositoryUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
 	</PropertyGroup>
 
 	<Target Name="SetPackageVersion" DependsOnTargets="Build">
