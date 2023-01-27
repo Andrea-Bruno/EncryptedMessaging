@@ -169,7 +169,11 @@ namespace EncryptedMessaging
             Tuple<ulong, Func<byte[], byte[]>> license = null;
             if (licenseActivator != null)
                 license = new Tuple<ulong, Func<byte[], byte[]>>(licenseActivator.IdOEM, licenseActivator.SignLogin);
-            Channel = new Channel(entryPoint, Domain, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, licenseActivator: license); // *1* // If you change this value, it must also be changed on the server			
+            // *1* // If you change this value, it must also be changed on the server	
+            Channel = new Channel(entryPoint, Domain, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, licenseActivator: license)
+            {
+                OnRouterConnectionChange = _OnRouterConnectionChange
+            };
             IsRestored = !string.IsNullOrEmpty(privateKeyOrPassphrase);
             ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
         }
@@ -196,7 +200,14 @@ namespace EncryptedMessaging
         /// <summary>
         /// Function that acts as an event and will be called when the connection was successful and the client is logged into the router (return true), or when the connection with the router is lost (return false). You can set this action as an event.
         /// </summary>
-        public Action<bool> OnRouterConnectionChange { set => Channel.OnRouterConnectionChange = value; }
+        public Action<bool> OnRouterConnectionChange { private get; set; }
+        // public Action<bool> OnRouterConnectionChange { set => Channel.OnRouterConnectionChange = value; }
+
+        private void _OnRouterConnectionChange(bool statusConnection)
+        {
+            Messaging.SendMessagesInQueue();
+            OnRouterConnectionChange?.Invoke(statusConnection);
+        }
 
         /// <summary>
         /// Function delegated with the event that creates the message visible in the user interface. This function will then be called whenever a message needs to be drawn in the chat. Server-type host systems that don't have messages to render in chat probably don't need to set this action
@@ -378,16 +389,16 @@ namespace EncryptedMessaging
                 }
                 connectivity = !internetConnectionError;
             }
-            if (connectivity)
-            {
-                foreach (var context in Contexts)
-                {
-                    if (context.IsInitialized)
-                    {
-                        context.Messaging.SendMessagesInQueue();
-                    }
-                }
-            }
+            //if (connectivity)
+            //{
+            //    foreach (var context in Contexts)
+            //    {
+            //        if (context.IsInitialized)
+            //        {
+            //            context.Messaging.SendMessagesInQueue();
+            //        }
+            //    }
+            //}
             CurrentConnectivity = connectivity;
             Channel.InternetAccess = CurrentConnectivity == true;
         }
