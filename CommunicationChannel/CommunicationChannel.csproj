@@ -73,10 +73,6 @@
 	</Target>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\..\SecureStorage\SecureStorage.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
 	  <None Update="LICENSE.md">
 	    <Pack>True</Pack>
 	    <PackagePath>\</PackagePath>

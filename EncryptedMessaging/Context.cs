@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -133,7 +134,7 @@ namespace EncryptedMessaging
                 Debugger.Break(); // Set up cloud path functions for server applications only
 #endif                
             SessionTimeout = modality.HasFlag(Modality.RemoveUnusedContacts) ? DefaultServerSessionTimeoutMs : Timeout.Infinite;
-            Domain = Converter.BytesToInt(Encoding.ASCII.GetBytes(networkName));
+            NetworkId = Converter.BytesToInt(Encoding.ASCII.GetBytes(networkName));
             InvokeOnMainThread = invokeOnMainThread ?? ThreadSafeCalls;
             MessageFormat = new MessageFormat(this);
 #if DEBUG_A
@@ -170,13 +171,17 @@ namespace EncryptedMessaging
             if (licenseActivator != null)
                 license = new Tuple<ulong, Func<byte[], byte[]>>(licenseActivator.IdOEM, licenseActivator.SignLogin);
             // *1* // If you change this value, it must also be changed on the server	
-            Channel = new Channel(entryPoint, Domain, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, licenseActivator: license)
+            Channel = new Channel(entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, licenseActivator: license)
             {
                 OnRouterConnectionChange = _OnRouterConnectionChange
             };
             IsRestored = !string.IsNullOrEmpty(privateKeyOrPassphrase);
             ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
         }
+        /// <summary>
+        /// A temporary key and value registry made available to the host to temporarily store values
+        /// </summary>
+        public readonly Dictionary<string, object> Session = new Dictionary<string, object>();
         static private bool? tmpInternetAccess;
         /// <summary>
         /// Delegate for the action to be taken when messages arrive
@@ -474,7 +479,7 @@ namespace EncryptedMessaging
         //public delegate bool ShareTextMessage(string text);
         // Through this we can program an action that is triggered when a message arrives from a certain chat id
 
-        internal readonly int Domain;
+        internal readonly int NetworkId;
         internal readonly Channel Channel;
         /// <summary>
         /// Number of failure connection

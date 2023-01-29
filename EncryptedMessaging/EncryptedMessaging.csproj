@@ -73,6 +73,7 @@
 		<Compile Remove="ProcessResponsesFromCloud.cs" />
 	</ItemGroup>
 	<ItemGroup>
+	  <ProjectReference Include="..\..\SecureStorage\SecureStorage.csproj" />
 	  <ProjectReference Include="..\CommunicationChannel\CommunicationChannel.csproj" />
 	</ItemGroup>
 	<ItemGroup>

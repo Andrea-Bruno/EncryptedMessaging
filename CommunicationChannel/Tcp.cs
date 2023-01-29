@@ -235,6 +235,11 @@ namespace CommunicationChannel
                     StartLinger(5222, out var exception);
                     if (exception != null)
                     {
+                        if (exception.HResult == -2146233088)
+                        {
+                            Console.WriteLine("The router is off or unreachable");
+                            Debugger.Break();
+                        }
                         Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
                         Disconnect();
                     }

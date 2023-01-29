@@ -15,7 +15,7 @@ namespace CommunicationChannel
         /// Initialize the library
         /// </summary>
         /// <param name="serverAddress">Server Address</param>
-        /// <param name="domain">A domain corresponds to a membership group. Using the domain it is possible to divide the traffic on a server into TestNet, MainNet group (in order to isolate the message circuit within a given domain).</param>
+        /// <param name="domain">A domain (also known as Network Id) corresponds to a membership group. Using the domain it is possible to divide the traffic on a server into TestNet, MainNet group (in order to isolate the message circuit within a given domain).</param>
         /// <param name="onMessageArrives">Event that is raised when a message arrives.</param>
         /// <param name="onDataDeliveryConfirm">Event that is generated when the router (server) has received the outgoing message, This element returns the message in raw format</param>
         /// <param name="myId">The identifier of the current user. Since the server system is focused on anonymity and security, there is no user list, it is a cryptographic id generated with a hashing algorithm</param>
