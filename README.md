@@ -9,6 +9,14 @@ This open source project on github is a tutorial for using and implementing this
 
 [Go to the Messaging Library API Documentation (EncryptedMessaging)](https://www.fuget.org/packages/EncryptedMessaging)
 
-Nuget packages of this library:
+This project consists of three parts in the form of a library for security and functionality:
+
+[Secure storage](https://github.com/Andrea-Bruno/SecureStorage) it is a powerful data safe, the cryptographic keys and data that would allow the software to be attacked are kept with this tool.
+[Encrypted messaging](https://github.com/Andrea-Bruno/EncryptedMessaging) it is a powerful low-level cryptographic protocol, of the Trustless type, which manages communication, groups and contacts (this software will never access your address book, this library is the heart of the application)
+[Communication channel](https://github.com/Andrea-Bruno/EncryptedMessaging/tree/master/CommunicationChannel) is the low-level socket communication protocol underlying encrypted communication.
+
+These libraries are also distributed as nuget packages:
+[Secure storage (Nuget)](https://www.nuget.org/packages/SecureStorage/)
 [Encrypted messaging (Nuget)](https://www.nuget.org/packages/EncryptedMessaging/)
+[Communication channel (Nuget)](https://www.nuget.org/packages/CommunicationChannel/)
 

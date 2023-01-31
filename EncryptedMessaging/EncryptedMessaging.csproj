@@ -74,7 +74,6 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\..\SecureStorage\SecureStorage.csproj" />
-	  <ProjectReference Include="..\CommunicationChannel\CommunicationChannel.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="Resources\Dictionary.de.Designer.cs">
