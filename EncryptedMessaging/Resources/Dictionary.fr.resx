@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="About" xml:space="preserve">
-    <value>Sur</value>
+    <value>Info</value>
   </data>
   <data name="NewMessage" xml:space="preserve">
     <value>Vous avez reçu un nouveau message</value>
