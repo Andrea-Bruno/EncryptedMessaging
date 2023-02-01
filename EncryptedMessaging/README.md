@@ -14,3 +14,11 @@ Nuget packages of this library:
 
 * [Encrypted messaging (Nuget)](https://www.nuget.org/packages/EncryptedMessaging/)
 
+The reasons that led to this project with dontnet is that it is an open source development environment, and effective security is achieved only by being able to inspect all parts of the code, including the development framework.
+* [.NET is open source](https://dotnet.microsoft.com/en-us/platform/open-source)
+
+Our target is very linux oriented, and the partnership between Microsoft and Canonical ensure the highest standard of security and reliability.
+
+* [Microsoft and Canonical: partnering for security](https://ubuntu.com/blog/install-dotnet-on-ubuntu)
+
+* [Red Hat works with Microsoft to ensure new major versions and service releases are available in tandem with Microsoft releases](https://developers.redhat.com/products/dotnet/overview)
