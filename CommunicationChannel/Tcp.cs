@@ -151,6 +151,8 @@ namespace CommunicationChannel
                     var command = (Protocol.Command)data[0];
                     // var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation && command != Protocol.Command.ConnectionEstablished;
                     var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation;
+                    var writed = 0;
+                    var mbps = 0d;
                     try
                     {
                         lock (this)
@@ -162,7 +164,6 @@ namespace CommunicationChannel
                             WaitConfirmationSemaphore = waitConfirmation ? new SemaphoreSlim(0, 1) : null;
                             var mb = (double)dataLength / 1000000;
                             stream.WriteTimeout = TimeOutMs + Convert.ToInt32(mb / LimitMbps);
-                            var writed = 0;
                             Debug.WriteLine("start upload");
                             UpdateDownloadSpeed?.Invoke(0, 0, data.Length);
                             stream.Write((dataLength | lastBit).GetBytes(), 0, 4);
@@ -174,7 +175,7 @@ namespace CommunicationChannel
                                     toWrite = 65536;
                                 stream.Write(data, writed, toWrite);
                                 writed += toWrite;
-                                var mbps = Math.Round((writed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
+                                mbps = Math.Round((writed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
                                 UpdateDownloadSpeed?.Invoke(mbps, writed, data.Length);
                                 Debug.WriteLine("upload " + writed + "\\" + data.Length + " " + mbps + "mbps" + (writed == data.Length ? " completed" : ""));
                             }

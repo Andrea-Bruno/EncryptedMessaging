@@ -73,6 +73,10 @@
 	</Target>
 
 	<ItemGroup>
+	  <None Remove="CommunicationChannel.xml" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <None Update="LICENSE.md">
 	    <Pack>True</Pack>
 	    <PackagePath>\</PackagePath>

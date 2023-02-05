@@ -103,8 +103,8 @@ namespace EncryptedMessaging
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     // https://stackoverflow.com/questions/15878810/how-to-execute-command-on-cmd-from-c-sharp
-                    Functions.ExecuteCommand("cmd.exe", "/C date " + newDateTime.ToString( "d"), true);
-                    Functions.ExecuteCommand("cmd.exe", "/C time " + newDateTime.ToString("T"), true);
+                    Functions.ExecuteCommand("cmd.exe", "/C date " + newDateTime.ToString("d"));
+                    Functions.ExecuteCommand("cmd.exe", "/C time " + newDateTime.ToString("T"));
                 }
             }
             catch (Exception ex)

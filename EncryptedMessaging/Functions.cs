@@ -453,7 +453,7 @@ namespace EncryptedMessaging
         /// <param name="parameters">Parameters</param>
         /// <param name="useShellExecute">True if the shell should be used when starting the process; false if the process should be created directly from the executable file.</param>
         /// <returns>Result of command if the command generates an output</returns>
-        internal static string ExecuteCommand(string command, string parameters, bool useShellExecute = false)
+        public static string ExecuteCommand(string command, string parameters, bool useShellExecute = false)
         {
             Process process = new Process();
             process.StartInfo.FileName = command;
