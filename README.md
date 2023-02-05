@@ -8,7 +8,7 @@ This open source project on github is a tutorial for using and implementing this
 
 * [Powerful messaging software using this library](https://github.com/Andrea-Bruno/AnonymousMessenger)
 
-* [Go to the Messaging Library API Documentation (EncryptedMessaging)](https://www.fuget.org/packages/EncryptedMessaging)
+* [A robust cross-platform Cloud using this library as an underlying (Encrypted Clod)](https://github.com/Andrea-Bruno/CloudClient)
 
 This project consists of three parts in the form of a library for security and functionality:
 
