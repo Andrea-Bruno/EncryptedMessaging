@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.IsolatedStorage;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CommunicationChannel
 {
     /// <summary>
     /// This class handle all the communication channel operation with server-side.
     /// </summary>
-    public class Channel
+    public class Channel : IDisposable
     {
         /// <summary>
         /// Initialize the library
@@ -116,13 +117,18 @@ namespace CommunicationChannel
                 }
                 PostCounter++;
                 LastPostParts = posts.Count;
-                posts.ForEach(post =>
-                {
-                    if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
-                        DuplicatePost++;
-                    else
-                        OnMessageArrives?.Invoke(chatId, post);
-                });
+                // Separate the task used by the TCP connection from what comes next
+                new Task(() => posts.ForEach(post =>
+                    {
+                        if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
+                        {
+                            DuplicatePost++;
+                            Debugger.Break();
+                        }
+                        else
+                            OnMessageArrives?.Invoke(chatId, post);
+                    })).Start();
+
             }
             else if (inputType == Protocol.Command.Ping)
             {
@@ -297,6 +303,13 @@ namespace CommunicationChannel
                 } while (p < data.Length);
             }
             return p == data.Length;
+        }
+
+        public void Dispose()
+        {
+            OnRouterConnectionChange = null;
+            RefreshLogError = null;
+            Tcp.Dispose();
         }
         //		public static void OnConnectivityChange(bool internetAccess) => InternetAccess = internetAccess;
     }

@@ -11,13 +11,13 @@ namespace CommunicationChannel
     /// <summary>
     /// This class is used for establishing link connection and communicating with the server.
     /// </summary>
-    internal class Tcp
+    internal class Tcp : IDisposable
     {
         internal Tcp(Channel channel)
         {
             Channel = channel;
             TimerCheckConnection = new Timer(OnTimerCheckConnection, null, Timeout.Infinite, Timeout.Infinite);
-            _timerAutoDisconnect = new Timer(OnTimerAutoDisconnect, null, Timeout.Infinite, Timeout.Infinite);
+            TimerAutoDisconnect = new Timer(OnTimerAutoDisconnect, null, Timeout.Infinite, Timeout.Infinite);
             TimerKeepAlive = new Timer(OnTimerKeepAlive, null, Timeout.Infinite, Timeout.Infinite);
         }
         internal readonly Channel Channel;
@@ -38,12 +38,12 @@ namespace CommunicationChannel
 
         // =================== This timer automatically closes the connection after a certain period of network inactivity ===============
         //public int ConnectionTimeout = Timeout.Infinite;
-        private readonly Timer _timerAutoDisconnect;
+        private readonly Timer TimerAutoDisconnect;
         private void OnTimerAutoDisconnect(object o) => Disconnect(false);
         private void SuspendAutoDisconnectTimer()
         {
 
-            _timerAutoDisconnect.Change(Timeout.Infinite, Timeout.Infinite);
+            TimerAutoDisconnect.Change(Timeout.Infinite, Timeout.Infinite);
         }
         private DateTime _timerStartedTime = DateTime.MinValue;
         private void ResumeAutoDisconnectTimer(int? connectionTimeout = null)
@@ -51,7 +51,7 @@ namespace CommunicationChannel
             if (connectionTimeout == null)
                 _timerStartedTime = DateTime.UtcNow;
             if (Channel.ConnectionTimeout != Timeout.Infinite)
-                _timerAutoDisconnect.Change(connectionTimeout != null ? (int)connectionTimeout : Channel.ConnectionTimeout, Timeout.Infinite);
+                TimerAutoDisconnect.Change(connectionTimeout != null ? (int)connectionTimeout : Channel.ConnectionTimeout, Timeout.Infinite);
         }
         // ===============================================================================================================================
 
@@ -236,11 +236,6 @@ namespace CommunicationChannel
                     StartLinger(5222, out var exception);
                     if (exception != null)
                     {
-                        if (exception.HResult == -2146233088)
-                        {
-                            Console.WriteLine("The router is off or unreachable");
-                            Debugger.Break();
-                        }
                         Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
                         Disconnect();
                     }
@@ -290,22 +285,25 @@ namespace CommunicationChannel
 
                     if (!Client.ConnectAsync(addresses, port).Wait(TimeOutMs)) // ms timeout
                     {
-                        throw new Exception("Failed to connect");
+                        Debugger.Break();
+                        exception = new Exception("Failed to connect");
                     }
-                    exception = null;
                 }
                 catch (Exception ex)
                 {
                     if (ex.HResult == -2146233088)
                     {
+                            Console.WriteLine("The router is off or unreachable");
                         // refuse
                         // è il problema che sto avendo su linux server di produzione
                     }
+                    Debugger.Break();
                     exception = ex;
                 }
             }
             catch (Exception ex)
             {
+                Debugger.Break();
                 exception = ex;
             }
         }
@@ -471,7 +469,7 @@ namespace CommunicationChannel
                     Client = null;
                 }
                 Channel.ConnectionChange(false);
-                if (tryConnectAgain)
+                if (tryConnectAgain && !_disposed)
                     TimerCheckConnection.Change(TimerIntervalCheckConnection, Timeout.Infinite); // restart check if connection is lost
             }
         }
@@ -483,5 +481,17 @@ namespace CommunicationChannel
             //According to the specifications, the property _client.Connected returns the connection status based on the last data transmission. The server may not be connected even if this property returns true
             // https://docs.microsoft.com/it-it/dotnet/api/system.net.sockets.tcpclient.connected?f1url=https%3A%2F%2Fmsdn.microsoft.com%2Fquery%2Fdev16.query%3FappId%3DDev16IDEF1%26l%3DIT-IT%26k%3Dk(System.Net.Sockets.TcpClient.Connected);k(DevLang-csharp)%26rd%3Dtrue&view=netcore-3.1
             Client != null && Client.Connected && InternetAccess;
+        private bool _disposed;
+        public void Dispose()
+        {
+            _disposed =  true;
+            Disconnect();
+            TimerCheckConnection?.Change(Timeout.Infinite, Timeout.Infinite);
+            TimerCheckConnection?.Dispose();
+            TimerAutoDisconnect?.Change(Timeout.Infinite, Timeout.Infinite);
+            TimerAutoDisconnect?.Dispose();
+            TimerKeepAlive?.Change(Timeout.Infinite, Timeout.Infinite);
+            TimerKeepAlive?.Dispose();
+        }
     }
 }

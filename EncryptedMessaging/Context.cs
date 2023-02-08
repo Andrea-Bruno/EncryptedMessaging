@@ -377,6 +377,7 @@ namespace EncryptedMessaging
             lock (Contexts)
             {
                 if (connectivity == CurrentConnectivity) return;
+                SetConnectivity(connectivity);
             }
         }
 
@@ -388,7 +389,7 @@ namespace EncryptedMessaging
                 Time.GetCurrentTimeGMT(out bool internetConnectionError);
                 if (internetConnectionError)
                 {
-                    // Automatically recheck the connection in one minute (teset the timer)
+                    // Automatically recheck the connection in one minute (reset the timer)
                     CheckConnectivity.Change(Timeout.Infinite, Timeout.Infinite);
                     CheckConnectivity.Change(60000, Timeout.Infinite);
                 }
@@ -412,35 +413,6 @@ namespace EncryptedMessaging
         private static readonly Dictionary<Guid, int> Counter = new Dictionary<Guid, int>();
         internal readonly Contact.RuntimePlatform RuntimePlatform;
 
-        /// <summary>
-        /// Public implementation of Dispose pattern callable by consumers.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-
-        private bool _disposed;
-
-        /// <summary>
-        /// Protected implementation of Dispose pattern.
-        /// </summary>
-        /// <param name="disposing">True to disposing</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_disposed)
-            {
-                return;
-            }
-            if (disposing)
-            {
-                SecureStorage.Dispose();
-                OnConnectivityChange(false);
-                Contexts.Remove(this);
-                _disposed = true;
-            }
-        }
         /// <summary>
         /// Setting settings for library operation
         /// </summary>
@@ -534,6 +506,42 @@ namespace EncryptedMessaging
             cloudManager.SendCommand = SendCommand;
             OnContactEvent += OnMessageReceived; // Intercept messages for the cloud client
             CloudManager = cloudManager;
+        }
+        private bool _disposed;
+        /// <summary>
+        /// Protected implementation of Dispose pattern.
+        /// </summary>
+        /// <param name="disposing">True to disposing</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
+            if (disposing)
+            {
+                this.OnRouterConnectionChange?.Invoke(false);
+                this.OnRouterConnectionChange = null;
+                this.OnCommunicationErrorEvent = null;
+                this.OnContactEvent = null;
+                this.OnLastReadedTimeChange = null;
+                this.OnMessageDelivered = null;
+                this.OnNotification = null;
+                this.ViewMessage = null;
+                SecureStorage.Dispose();
+                Contacts.Dispose();
+                Channel.Dispose();
+                Contexts.Remove(this);
+            }
+        }
+        /// <summary>
+        /// Public implementation of Dispose pattern callable by consumers.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

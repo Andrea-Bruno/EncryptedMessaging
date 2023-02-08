@@ -793,5 +793,10 @@ namespace EncryptedMessaging
         [XmlIgnore]
         public object NameFirstLetter => Name.Substring(0, 1).ToUpper();
 
+        public void Dispose()
+        {
+            SessionTimeout?.Change(Timeout.Infinite, Timeout.Infinite);
+            SessionTimeout?.Dispose();
+        }
     }
 }

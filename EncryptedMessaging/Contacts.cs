@@ -14,7 +14,7 @@ namespace EncryptedMessaging
     /// <summary>
     /// This class contains all functions used for multiple contacts/group functionalities associated with them.
     /// </summary>
-    public class Contacts
+    public class Contacts : IDisposable
     {
         /// <summary>
         /// Set the time stamp when a message is sent to the participants.
@@ -815,6 +815,16 @@ namespace EncryptedMessaging
         public Contact GetMyContact(bool nameless = false)
         {
             return nameless ? Context.My.CreateMyContact(nameless) : Context.My.Contact;
+        }
+
+        public void Dispose()
+        {
+            timerRefreshLastMessageTimeDistance?.Change(Timeout.Infinite,Timeout.Infinite);
+            timerRefreshLastMessageTimeDistance?.Dispose();
+            foreach (var item in ContactsList.ToArray())
+            {
+                item.Dispose();
+            }
         }
 
         private Contact _cloud;
