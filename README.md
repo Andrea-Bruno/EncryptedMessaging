@@ -1,13 +1,13 @@
 # EncryptedMessaging
 
-## Data exchange library between any type of device, usable for both desktop, mobile and internet of things applications:
-*## Support of digital signature on packages, and security level in military standard.
-*## This library, in terms of functionality and type of use, currently has no analogues.
+### Data exchange library between any type of device, usable for both desktop, mobile and internet of things applications:
+* Support of digital signature on packages, and security level in military standard.
+* This library, in terms of functionality and type of use, currently has no analogues.
 
-## Examples of use:
-*## Encrypted communication to create applications similar to Telegram or Signal but with greater attention to computer security and privacy.
-*## Data transmission between device and cloud.
-*## Acquisition of telemetry data produced by equipment.
+### Examples of use:
+* Encrypted communication to create applications similar to Telegram or Signal but with greater attention to computer security and privacy.
+* Data transmission between device and cloud.
+* Acquisition of telemetry data produced by equipment.
 
 ## The library works correctly under all kinds of circumstances and data lines, and is ready for production scenarios,
 
