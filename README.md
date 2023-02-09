@@ -8,6 +8,7 @@
 * Encrypted communication to create applications similar to Telegram or Signal but with greater attention to computer security and privacy.
 * Data transmission between device and cloud.
 * Acquisition of telemetry data produced by equipment.
+* Connecting the Internet of Things and wearable devices to the cloud.
 
 ## The library works correctly under all kinds of circumstances and data lines, and is ready for production scenarios,
 
