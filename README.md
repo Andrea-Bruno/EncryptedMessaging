@@ -1,5 +1,16 @@
 # EncryptedMessaging
-## Encrypted communication library to create applications similar to Telegram or Signal but with greater attention to IT security and privacy
+
+## Data exchange library between any type of device, usable for both desktop, mobile and internet of things applications:
+##* Support of digital signature on packages, and security level in military standard.
+##* This library, in terms of functionality and type of use, currently has no analogues.
+
+## Examples of use:
+##* Encrypted communication to create applications similar to Telegram or Signal but with greater attention to computer security and privacy.
+##* Data transmission between device and cloud.
+##* Acquisition of telemetry data produced by equipment.
+
+## The library works correctly under all kinds of circumstances and data lines, and is ready for production scenarios,
+
 Our mission is to exacerbate the concept of security in messaging and create something conceptually new and innovative from a technical point of view. Top-level encrypted communication (there is no backend , there is no server-side contact list, there is no server but a simple router, the theory is that if the server does not exist then the server cannot be hacked, the communication is anonymous, the IDs are derived from a hash of the public keys, therefore in no case it is possible to trace who originates the messages, the encryption key is changed for each single message, and a system of digital signatures guarantees the origin of the messages and prevents attacks "men in de middle"). We use different concepts introduced with Bitcoin technology and the library itself: there are no accounts, the account is simply a pair of public and private keys, groups are also supported, the group ID is derived from a hash computed through the public keys of the members, since the hash process is irreversible, the level of anonymity is maximum). The publication of the source wants to demonstrate the genuineness of the concepts we have adopted! Thanks for your attention!
 
 * [Go to the Messaging Library API Documentation (EncryptedMessaging)](https://www.fuget.org/packages/EncryptedMessaging)
