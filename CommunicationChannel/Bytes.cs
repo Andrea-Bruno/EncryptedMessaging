@@ -143,6 +143,8 @@ public static class Bytes
     /// <returns> byte array</returns>
     public static byte[] Base64ToBytes(this string base64)
     {
+        if (base64 == null)
+            return null;
         return Convert.FromBase64String(base64);
     }
 
