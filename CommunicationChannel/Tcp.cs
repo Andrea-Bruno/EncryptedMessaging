@@ -297,7 +297,7 @@ namespace CommunicationChannel
                         // refuse
                         // è il problema che sto avendo su linux server di produzione
                     }
-                    Debugger.Break();
+                    //Debugger.Break();
                     exception = ex;
                 }
             }
