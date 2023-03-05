@@ -107,7 +107,7 @@ namespace EncryptedMessaging
                     Functions.ExecuteCommand("cmd.exe", "/C time " + newDateTime.ToString("T"));
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 Console.WriteLine("The system does not support updating the date and time, you probably need to run the administrator application!");
             }

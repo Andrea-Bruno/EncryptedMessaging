@@ -56,7 +56,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Context implementation.
         /// </summary>
-        public readonly Context Context;
+        public  Context Context { get; private set; }
         /// <summary>
         /// The chat group.
         /// </summary>
@@ -267,7 +267,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Indicates whether this message was forwarded with encryption
         /// </summary>
-        public readonly bool Encrypted;
+        public bool Encrypted { get; private set; }
 
         /// <summary>
         /// Translation set for the chat with the recipent.
@@ -385,6 +385,7 @@ namespace EncryptedMessaging
             // NOTE: Please do not add descriptions, for post types that should not be visible in the view !!
             var dictionary = new Dictionary<MessageType, string>
             {
+                #pragma warning disable
                 { MessageType.Text, Dictionary.TextMessage },
                 { MessageType.Audio, "🔊 " + Dictionary.Audio },
                 { MessageType.Image, "📷 " + Dictionary.Image },
@@ -400,6 +401,7 @@ namespace EncryptedMessaging
                 { MessageType.DeclinedCall, Dictionary.CallDeclined},
                 { MessageType.ShareEncryptedContent, "⚓ " + Dictionary.EncryptedSharedContent},
                 { MessageType.ReplyToMessage, Dictionary.TextMessage},
+                #pragma warning restore
             };
             return dictionary;
         }

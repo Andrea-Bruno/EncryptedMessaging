@@ -76,6 +76,7 @@ namespace EncryptedMessaging
         /// <param name="instanceId">If you want to initialize multiple instances of this component, a unique id must be assigned, if not assigned a progressive id will be assigned automatically. This value allows the recovery of the saved key when the application is restarted</param>
         public Context(string entryPoint, string networkName = "testnet", bool multipleChatModes = false, string privateKeyOrPassphrase = null, Modality modality = Modality.Client, bool? internetAccess = null, Action<Action> invokeOnMainThread = null, Func<string, string> getSecureKeyValue = null, Storage.SetKeyValueSecure setSecureKeyValue = null, Func<string> getFirebaseToken = null, Func<string> getAppleDeviceToken = null, string cloudPath = null, OEM licenseActivator = null, string instanceId = null)
         {
+            Session = new Dictionary<string, object>();
             try
             {
                 EntryPoint = new UriBuilder(entryPoint).Uri;
@@ -176,12 +177,14 @@ namespace EncryptedMessaging
                 OnRouterConnectionChange = _OnRouterConnectionChange
             };
             IsRestored = !string.IsNullOrEmpty(privateKeyOrPassphrase);
-            ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
+            if (!IsDisposed)
+                ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
         }
+
         /// <summary>
         /// A temporary key and value registry made available to the host to temporarily store values
         /// </summary>
-        public readonly Dictionary<string, object> Session = new Dictionary<string, object>();
+        public  Dictionary<string, object> Session { get; private set; } 
         static private bool? tmpInternetAccess;
         /// <summary>
         /// Delegate for the action to be taken when messages arrive
@@ -507,18 +510,18 @@ namespace EncryptedMessaging
             OnContactEvent += OnMessageReceived; // Intercept messages for the cloud client
             CloudManager = cloudManager;
         }
-        private bool _disposed;
+        private bool IsDisposed;
         /// <summary>
         /// Protected implementation of Dispose pattern.
         /// </summary>
         /// <param name="disposing">True to disposing</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (_disposed)
+            if (IsDisposed)
             {
                 return;
             }
-            _disposed = true;
+            IsDisposed = true;
             if (disposing)
             {
                 this.OnRouterConnectionChange?.Invoke(false);

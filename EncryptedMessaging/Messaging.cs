@@ -554,6 +554,7 @@ namespace EncryptedMessaging
             SendMessage(MessageType.LastReading, Converter.ToUnixTimestamp(Time.GetCurrentTimeGMT(out _)).GetBytes(), toContact);
         }
 
+#pragma warning disable 618
         /// <summary>
         /// The only type of audio file allowed is mp3, with a speed of 64 k bps or lower.
         /// </summary>
@@ -595,6 +596,8 @@ namespace EncryptedMessaging
         /// <param name="call"></param>
         /// <param name="toContact"></param>
         public void SendDeclinedCall(byte[] call, Contact toContact) => SendMessage(MessageType.DeclinedCall, call, toContact);
+#pragma warning restore 618
+
 
         /// <summary>
         /// Submit a geographic location
