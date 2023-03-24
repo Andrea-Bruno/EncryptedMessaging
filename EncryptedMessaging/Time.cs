@@ -64,7 +64,7 @@ namespace EncryptedMessaging
             deltas.Sort();
             var middle = deltas.Count / 2;
             delta = deltas.Count % 2 == 0 ? new TimeSpan(deltas[middle].Ticks / 2 + deltas[middle + 1].Ticks / 2) : deltas[middle];
-            dateTime = DateTime.UtcNow.Add(delta);
+            dateTime = DateTime.UtcNow.Add(-delta);
             return true;
         }
 
