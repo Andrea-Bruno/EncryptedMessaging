@@ -92,7 +92,7 @@ namespace CommunicationChannel
         {
             if (incomingData.Length == 0)
             {
-                error = Tuple.Create(ErrorType.WrondDataLength, null as string);
+                error = Tuple.Create(ErrorType.WrongDataLength, "incomingData.Length == 0");
                 return;
             }
 
@@ -112,7 +112,7 @@ namespace CommunicationChannel
                 var chatId = Converter.BytesToUlong(incomingData.Skip(1).Take(8));
                 if (!SplitAllPosts(incomingData.Skip(9), out var posts))
                 {
-                    error = Tuple.Create(ErrorType.WrondDataLength, null as string);
+                    error = Tuple.Create(ErrorType.WrongDataLength, "SplitAllPosts");
                     return;
                 }
                 PostCounter++;
@@ -159,7 +159,7 @@ namespace CommunicationChannel
 #pragma warning disable
             Working,
             ConnectionFailure,
-            WrondDataLength,
+            WrongDataLength,
             LostConnection,
             SendDataError,
             CommandNotSupported,

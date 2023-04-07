@@ -294,8 +294,6 @@ namespace CommunicationChannel
                     if (ex.HResult == -2146233088)
                     {
                             Console.WriteLine("The router is off or unreachable");
-                        // refuse
-                        // è il problema che sto avendo su linux server di produzione
                     }
                     //Debugger.Break();
                     exception = ex;
@@ -303,8 +301,17 @@ namespace CommunicationChannel
             }
             catch (Exception ex)
             {
-                Debugger.Break();
-                exception = ex;
+                if (ex.HResult == -2147467259)
+                {
+                    exception = new Exception("Wrong entry point! There is no DNS/IP association with the specified entry point.");
+                    Console.WriteLine(exception.Message);
+                    Debugger.Break();
+                }
+                else
+                {
+                    Debugger.Break();
+                    exception = ex;
+                }
             }
         }
 
@@ -342,7 +349,7 @@ namespace CommunicationChannel
                     return;
                 }
                 if (bytesRead != 4)
-                    Channel.OnTcpError(ErrorType.WrondDataLength, null);
+                    Channel.OnTcpError(ErrorType.WrongDataLength, "BeginRead: bytesRead != 4");
                 else
                 {
                     var firstUint = BitConverter.ToUInt32(first4bytes, 0);

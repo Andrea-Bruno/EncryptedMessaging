@@ -274,10 +274,12 @@ namespace EncryptedMessaging
         /// Event that occurs when a message has been sent. Use this event to notify the host application when a notification needs to be sent to the recipient.
         /// </summary>
         public event MessageDeliveredEvent OnMessageDelivered;
+        
         internal void OnMessageDeliveredInvoke(Contact contact, DateTime deliveredTime, bool isMy)
         {
             if (OnMessageDelivered != null)
-                Task.Run(() => OnMessageDelivered?.Invoke(contact, deliveredTime, isMy));
+                InvokeOnMainThread(() => OnMessageDelivered?.Invoke(contact, deliveredTime, isMy));       
+        
         }
 
         /// <summary>
@@ -480,7 +482,7 @@ namespace EncryptedMessaging
         /// Use this property to call the main thread when needed:
         /// The main thread must be used whenever the user interface needs to be updated, for example, any operation on an ObservableCollection that changes elements must be done by the main thread,  otherwise rendering on the graphical interface will generate an error.
         /// </summary>
-        public Action<Action> InvokeOnMainThread { get; set; }
+        public Action<Action> InvokeOnMainThread { get; private set; }
 
         internal ICloudManager CloudManager;
 
