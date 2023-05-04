@@ -117,17 +117,29 @@ namespace CommunicationChannel
                 }
                 PostCounter++;
                 LastPostParts = posts.Count;
-                // Separate the task used by the TCP connection from what comes next
-                new Task(() => posts.ForEach(post =>
+
+                posts.ForEach(post =>
+                {
+                    if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
                     {
-                        if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
-                        {
-                            DuplicatePost++;
-                            Debugger.Break();
-                        }
-                        else
-                            OnMessageArrives?.Invoke(chatId, post);
-                    })).Start();
+                        DuplicatePost++;
+                        Debugger.Break();
+                    }
+                    else
+                        OnMessageArrives?.Invoke(chatId, post);
+                });
+
+                // Separate the task used by the TCP connection from what comes next
+                //new Task(() => posts.ForEach(post =>
+                //    {
+                //        if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
+                //        {
+                //            DuplicatePost++;
+                //            Debugger.Break();
+                //        }
+                //        else
+                //            OnMessageArrives?.Invoke(chatId, post);
+                //    })).Start();
 
             }
             else if (inputType == Protocol.Command.Ping)

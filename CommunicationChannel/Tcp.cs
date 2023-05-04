@@ -206,7 +206,7 @@ namespace CommunicationChannel
                                     Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + ": Unable to connect to router");
                                     Console.WriteLine("Has the license expired? Or the router has no more licenses available and refuses the connection of new devices.");
 #if DEBUG
-                                    Debugger.Break(); 
+                                    Debugger.Break();
 #endif
                                 }
                                 // wait timed out
