@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 using System.Threading;
 using static CommunicationChannel.Channel;
 
@@ -282,11 +283,17 @@ namespace CommunicationChannel
                     {
                         LingerState = new LingerOption(true, 0)
                     };
-
+                    var watch = Stopwatch.StartNew();
                     if (!Client.ConnectAsync(addresses, port).Wait(TimeOutMs)) // ms timeout
                     {
+                        // the code that you want to measure comes here
+                        watch.Stop();
+                        if (watch.Elapsed.TotalMilliseconds >= TimeOutMs)
+                            exception = new Exception("Unable to connect to router: Probably firewall on router on port " + port);
+                        else
+                            exception = new Exception("Failed to connect");
                         Debugger.Break();
-                        exception = new Exception("Failed to connect");
+
                     }
                 }
                 catch (Exception ex)
