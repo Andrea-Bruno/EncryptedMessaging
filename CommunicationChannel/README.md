@@ -1,4 +1,4 @@
-# Crypto-Messenger
+# Communication Channel
 
 Communication Channel underlies the encrypted messaging protocol, we have separated the two parts because the idea is to provide an universal communication protocol, which can work on any type of communication medium and hardware. Communication Channel creates a tcp socket communication channel, but this underlying one can be replaced with an analogous communication channel working with GSM data networks (without using the internet), or with rs232, rs485 ports, or any other communication devices either digital and analog. Just change the underlying encrypted communication protocol and we can easily implement encrypted communication on any type of device and in any scenario. If necessary, we can create implementations of new communication channels on different hardware, on commission.
 
