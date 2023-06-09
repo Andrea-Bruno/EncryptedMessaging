@@ -2,12 +2,18 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using CommunicationChannel;
+using NBitcoin.Crypto;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace EncryptedMessaging
 {
     /// <summary>
-    /// This class is used for converting contacts to public keys.
+    /// This class allows all technical operations on chat contacts. The contact system is based on cryptographic key pairs (public or private). A contact can represent a single person or a group, in fact a contact is made up of the collection of all the public keys of the contacts, this set of keys with a cryptographic calculation generates the ChatId (an id that identifies the contact that the group of conversation). Contacts formed by a single person is actually a group between two users who communicate with each other, for this reason there are no groups with less than two public cryptographic keys. In cryptography, the public key is used to send an encrypted message to whoever owns the private key (the only one that can allow the message to be decrypted, this makes the messaging system extremely secure).
+    /// Each user therefore has a public and private key(the public one is used by interlocutors to encrypt messages, the private one to decrypt incoming messages). The contact also has an ID that is calculated with a computational operation on the public key, so whoever knows the public keys of a contact can also trace his ID.Since there may be groups with the same members but with a different theme, the group name also contributes to the computation of the chat ID.
     /// </summary>
     public class ContactConverter
     {
@@ -34,7 +40,7 @@ namespace EncryptedMessaging
         /// This function obtains the list of participants from a string that represents everyone's public key
         /// </summary>
         /// <param name="publicKeys">string that represents everyone's public key</param>
-        /// <param name="participants">participants in the group</param>
+        /// <param name="participants">The list of public keys of the chat participants</param>
         /// <returns>Boolean</returns>
 
 
@@ -67,7 +73,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Boolean check for validating key.
         /// </summary>
-        /// <param name="participants">Partipants</param>
+        /// <param name="participants">The list of public keys of the chat participants</param>
         /// <param name="publicKeys">Public Key</param>
         /// <param name="removeMyKey">Remove Key</param>
         /// <returns></returns>
@@ -90,25 +96,48 @@ namespace EncryptedMessaging
         /// <summary>
         /// Calculate the hash id of the contact. For groups, the name also comes into play in the computation because there can be groups with the same participants but different names
         /// </summary>
-        /// <param name="participants">Partipants</param>
-        /// <param name="name">The name parameter must only be passed for groups, because there are groups with the same members but different names</param>
+        /// <param name="participants">The list of public keys of the chat participants. Participants must be at least 2 (the two people speaking to each other)</param>
+        /// <param name="name">The name parameter must only be passed for groups, because there are groups with the same members but different names. The communication between you and another is made up of 2 participants, as groups we mean chats with more than 2 participants: If there are more than 2 participants, the name is mandatory in order to distinguish different groups but with the same members.</param>
         /// <returns>Unisgned Integer</returns>
-        public static ulong ParticipantsToChatId(List<byte[]> participants, string name)
+        public static ulong ParticipantsToChatId(IEnumerable<byte[]> participants, string name = null)
         {
             var participantsClone = participants.ToList(); // So there is no error if the list is changed externally during the sort process
-            participantsClone?.Sort(new Functions.ByteListComparer());
-            var pts = Array.Empty<byte>();
-            if (participantsClone.Count > 2)
-                pts = name.GetBytes();
-            participantsClone.ForEach(x => pts = pts.Combine(x));
-            var hashBytes = CryptoServiceProvider.ComputeHash(pts);
-            return Converter.BytesToUlong(hashBytes.Take(8));
+            var table = ParticipantListToIdTable(participantsClone);
+            return UserIdsToChatId(table.Select(x => x.UserId), name);
+            // Old algorithm:
+            //var pts = Array.Empty<byte>();
+            //if (participantsClone.Count > 2)
+            //    pts = name.GetBytes();
+            //participantsClone.ForEach(x => pts = pts.Combine(x));
+            //var hashBytes = CryptoServiceProvider.ComputeHash(pts);
+            //return Converter.BytesToUlong(hashBytes.Take(8));
+        }
+
+        /// <summary>
+        /// Get chat id from a list of chat members' user ids
+        /// </summary>
+        /// <param name="Ids">The ids of the chat members</param>
+        /// <param name="name">The name parameter must only be passed for groups, because there are groups with the same members but different names. The communication between you and another is made up of 2 participants, as groups we mean chats with more than 2 participants: If there are more than 2 participants, the name is mandatory in order to distinguish different groups but with the same members.</param>
+        /// <returns></returns>
+        public static ulong UserIdsToChatId(IEnumerable<ulong> Ids, string name = null)
+        {
+            var result = 0ul;
+            var count = 0;
+            foreach (var id in Ids)
+            {
+                result ^= id;
+                count++;
+            }
+            // Groups with more than 2 members must have a name so that different groups with the same members can be distinguished
+            if (count > 2 && name != null)
+                result ^= GetUserId(name.GetBytes());
+            return result;
         }
 
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="participants"></param>
+        /// <param name="participants">The list of public keys of the chat participants</param>
         /// <returns></returns>
         public static bool ValidateKeys(List<byte[]> participants)
         {
@@ -125,7 +154,7 @@ namespace EncryptedMessaging
                 }
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return false;
             }
@@ -187,7 +216,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Remove they key if it is not null and assign a new Public key Binary for empty values.
         /// </summary>
-        /// <param name="participants">Participants</param>
+        /// <param name="participants">The list of public keys of the chat participants</param>
         /// <param name="removeMyKey">Byte array</param>
         public void NormalizeParticipants(ref List<byte[]> participants, bool removeMyKey = false)
         {
@@ -207,7 +236,37 @@ namespace EncryptedMessaging
             {
                 participants.Add(myKey);
             }
-            participants.Sort(new Functions.ByteListComparer());
+            SortParticipants(ref participants);
+        }
+
+        /// <summary>
+        /// Sort the list of participants according to their ID, and returns the table of the correspondence between the public key and the participant's ID
+        /// </summary>
+        /// <param name="participants">The list of public keys of the chat participants</param>
+        public static void SortParticipants(ref List<byte[]> participants)
+        {
+            var table = ParticipantListToIdTable(participants);
+            participants.Clear();
+            participants.AddRange(table.OrderBy(o => o.UserId).Select(x => x.PublicKey).ToList());
+        }
+
+        public static List<ParticipantIdTable> ParticipantListToIdTable(List<byte[]> participants)
+        {
+            var table = new List<ParticipantIdTable>();
+            participants.ForEach(x => table.Add(new ParticipantIdTable(x)));
+            return table;
+        }
+
+        public class ParticipantIdTable
+        {
+            public ParticipantIdTable(byte[] publicKey)
+            {
+                PublicKey = publicKey;
+                UserId = GetUserId(publicKey);
+
+            }
+            public byte[] PublicKey;
+            public ulong UserId;
         }
 
         /// <summary>

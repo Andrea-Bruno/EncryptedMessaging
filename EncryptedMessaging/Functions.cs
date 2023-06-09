@@ -60,29 +60,6 @@ namespace EncryptedMessaging
             return ms.ToArray();
         }
 
-        /// <summary>
-        /// Compare the two byte list and return the result.
-        /// </summary>
-        public class ByteListComparer : IComparer<IList<byte>>
-        {
-            /// <summary>
-            /// 
-            /// </summary>
-            /// <param name="x"></param>
-            /// <param name="y"></param>
-            /// <returns></returns>
-            public int Compare(IList<byte> x, IList<byte> y)
-            {
-                for (var index = 0; index < Math.Min(x.Count, y.Count); index++)
-                {
-                    var result = x[index].CompareTo(y[index]);
-                    if (result != 0) return result;
-                }
-                return x.Count.CompareTo(y.Count);
-            }
-        }
-
-
         public static int BytesCompare(IList<byte> x, IList<byte> y)
         {
             for (var index = 0; index < Math.Min(x.Count, y.Count); index++)

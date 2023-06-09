@@ -154,8 +154,11 @@ namespace CommunicationChannel
                     var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation;
                     var writed = 0;
                     var mbps = 0d;
+#if RELEASE
+
                     try
                     {
+#endif
                         lock (this)
                         {
                             var stream = Client.GetStream();
@@ -214,11 +217,13 @@ namespace CommunicationChannel
                                 Channel.Spooler.OnSendCompleted(data, new Exception("time-out"), true);
                             }
                         }
+#if RELEASE
                     }
                     catch (Exception ex)
                     {
                         Channel.Spooler.OnSendCompleted(data, ex, true);
                     }
+#endif
                 }
             }
         }
@@ -228,8 +233,8 @@ namespace CommunicationChannel
         /// </summary>
         internal bool Connect()
         {
-            //if (!Channel.ContextIsReady())
-            //    return false;
+            if (_disposed)
+                return false;
             lock (this)
             {
                 if (!IsConnected() && InternetAccess)

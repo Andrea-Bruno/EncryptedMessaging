@@ -560,10 +560,10 @@ namespace EncryptedMessaging
         /// <summary>
         /// Remove the contact from the address book.
         /// </summary>
-        /// <param name="key">Public key</param>
-        public void RemoveContact(string key)
+        /// <param name="publicKeys">Public key</param>
+        public void RemoveContact(string publicKeys)
         {
-            var contact = ContactsList.ToList().Find(x => x.PublicKeys == key);
+            var contact = ContactsList.ToList().Find(x => x.PublicKeys == publicKeys);
             if (contact != null)
                 RemoveContact(contact);
         }

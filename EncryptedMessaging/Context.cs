@@ -399,6 +399,7 @@ namespace EncryptedMessaging
                     CheckConnectivity.Change(60000, Timeout.Infinite);
                 }
                 connectivity = !internetConnectionError;
+                InstancedTimeUtc = DateTime.UtcNow;
             }
             //if (connectivity)
             //{
@@ -413,7 +414,10 @@ namespace EncryptedMessaging
             CurrentConnectivity = connectivity;
             Channel.InternetAccess = CurrentConnectivity == true;
         }
-
+        /// <summary>
+        /// Indicates when the object was instantiated
+        /// </summary>
+        public static DateTime InstancedTimeUtc { get; private set; }
         private static Timer CheckConnectivity = new Timer((o) => { OnConnectivityChange(true); }, null, Timeout.Infinite, Timeout.Infinite);
         private static readonly Dictionary<Guid, int> Counter = new Dictionary<Guid, int>();
         internal readonly Contact.RuntimePlatform RuntimePlatform;
