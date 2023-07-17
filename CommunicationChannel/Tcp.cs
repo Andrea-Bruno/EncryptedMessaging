@@ -294,7 +294,7 @@ namespace CommunicationChannel
                         // the code that you want to measure comes here
                         watch.Stop();
                         if (watch.Elapsed.TotalMilliseconds >= TimeOutMs)
-                            exception = new Exception("Unable to connect to router: Probably firewall on router on port " + port);
+                            exception = new Exception("Unable to connect to router: Probably firewall on router on port " + port + " or the router does not run");
                         else
                             exception = new Exception("Failed to connect");
                         Debugger.Break();
