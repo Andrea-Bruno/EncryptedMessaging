@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -251,7 +250,7 @@ namespace EncryptedMessaging
 
 #if DEBUG
             if (isLogin && type != MessageType.Contact)
-                Debugger.Break(); // The isLogin flag can only be used for the login method
+                System.Diagnostics.Debugger.Break(); // The isLogin flag can only be used for the login method
 #endif
             SendMessage(new SendMessageParameters
             {
@@ -282,13 +281,13 @@ namespace EncryptedMessaging
         {
 #if DEBUG
             if (@params.ReplyToPostId != null && !MessageDescription.ContainsKey(@params.Type))
-                Debugger.Break(); // It is recommended that you use reply to a message, only with messages that can be viewed in the chat
+                System.Diagnostics.Debugger.Break(); // It is recommended that you use reply to a message, only with messages that can be viewed in the chat
             if (@params.ToContact != null && @params.ToIdUsers != null)
-                Debugger.Break(); // toContact and toIdUsers cannot be set simultaneously
+                System.Diagnostics.Debugger.Break(); // toContact and toIdUsers cannot be set simultaneously
             if (@params.ToIdUsers != null && @params.Encrypted)
-                Debugger.Break(); // It is not possible to use encryption if you do not have the contact
+                System.Diagnostics.Debugger.Break(); // It is not possible to use encryption if you do not have the contact
             if (Context.AfterInstanceThread == Thread.CurrentThread)
-                Debugger.Break(); // It is not allowed to send messages from the RunAfterInstanceCreate method, move the sending of messages into RunAfterInitialization
+                System.Diagnostics.Debugger.Break(); // It is not allowed to send messages from the RunAfterInstanceCreate method, move the sending of messages into RunAfterInitialization
 #endif
 
             if (SendMessageQueue != null)

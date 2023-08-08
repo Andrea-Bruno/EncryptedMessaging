@@ -1,6 +1,5 @@
 ﻿using System;
 using NBitcoin;
-using NBitcoin.RPC;
 
 namespace EncryptedMessaging
 {

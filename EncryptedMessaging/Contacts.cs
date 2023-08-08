@@ -553,7 +553,7 @@ namespace EncryptedMessaging
         /// <param name="contact"></param>
         public void RemoveContact(Contact contact)
         {
-            contact.Remove();
+            contact.Remove(true);
             ContactsListChanged?.Invoke(ContactsVisibled);
         }
 
@@ -601,7 +601,7 @@ namespace EncryptedMessaging
         }
 
         /// <summary>
-        /// Get the single  contact stored in the list.
+        /// Get the single contact stored in the list.
         /// </summary>
         /// <param name="chatId">64 bit unsigned integer</param>
         /// <returns></returns>
@@ -823,10 +823,18 @@ namespace EncryptedMessaging
         {
             timerRefreshLastMessageTimeDistance?.Change(Timeout.Infinite,Timeout.Infinite);
             timerRefreshLastMessageTimeDistance?.Dispose();
-            foreach (var item in ContactsList.ToArray())
+            foreach (var contact in ContactsList.ToArray())
             {
-                item.Dispose();
+                contact.Dispose();
             }
+        }
+
+        internal void Logout()
+        {
+            foreach (var contact in ContactsList.ToArray())
+            {
+                contact.Logout();
+            }            
         }
 
         private Contact _cloud;

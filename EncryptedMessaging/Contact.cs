@@ -50,7 +50,7 @@ namespace EncryptedMessaging
         [XmlIgnore]
         public readonly Dictionary<string, object> Session = new Dictionary<string, object>();
         private Timer SessionTimeout;
-        private void SessionExpired(object obj) => Context.Contacts.RemoveContact(this);
+        private void SessionExpired(object obj) => this.Remove(!Context.My.Modality.HasFlag(Modality.SaveContacts));
         internal void ExtendSessionTimeout()
         {
             SessionTimeout?.Change(Context.SessionTimeout, Timeout.Infinite);
@@ -452,6 +452,11 @@ namespace EncryptedMessaging
         internal DateTime ServerLoggedTime;
 
         /// <summary>
+        /// Terminate the session, this means that the next time you send messages to this contact, the cryptographic credentials will first be sent (these credentials are sent by sending your contact, which contains your public key).
+        /// </summary>
+        public void Logout() => ServerLoggedTime = default;
+
+        /// <summary>
         /// Set message information on last message delivery.
         /// </summary>
         public MessageInfo LastMessageDelivered;
@@ -696,9 +701,11 @@ namespace EncryptedMessaging
         /// <param name="cloudBackup">Boolean</param>
         public void Save(bool cloudBackup = false)
         {
-            if (Context != null && !Context.My.Modality.HasFlag(Modality.SaveContacts) || Modality.HasFlag(Modality.RemoveUnusedContacts) || !Context.Contacts.ContactsList.Contains(this)) return;
+            if (Context != null && !Context.My.Modality.HasFlag(Modality.SaveContacts) || Modality.HasFlag(Modality.RemoveUnusedContacts) || !Context.Contacts.ContactsList.Contains(this)) 
+                return;
             _ = Context.SecureStorage.ObjectStorage.SaveObject(this, ChatId.ToString(CultureInfo.InvariantCulture));
-            if (!cloudBackup) return;
+            if (!cloudBackup)
+                return;
             if (Context.CloudManager != null)
             {
                 var data = ContactMessage.GetDataMessageContact(this, Context, !IsGroup, !IsGroup);

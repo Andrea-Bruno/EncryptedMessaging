@@ -1,16 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.IsolatedStorage;
 using static CommunicationChannel.Channel;
 
 namespace CommunicationChannel
 {
-	/// <summary>
-	/// This class is used for saving, updating the data in the queue list.
-	/// </summary>
-	internal class Spooler
+    /// <summary>
+    /// This class is used for saving, updating the data in the queue list.
+    /// </summary>
+    internal class Spooler
 	{
 		internal Spooler(Channel channell)
 		{
@@ -158,7 +157,7 @@ namespace CommunicationChannel
 
 #if DEBUG
 					if (_sent.Contains(data))
-						Debugger.Break(); // send duplicate message!!
+                        System.Diagnostics.Debugger.Break(); // send duplicate message!!
 					_sent.Add(data);
 #endif
 					//if (pause)

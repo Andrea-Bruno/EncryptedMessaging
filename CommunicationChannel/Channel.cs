@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.IsolatedStorage;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace CommunicationChannel
 {
@@ -76,10 +75,8 @@ namespace CommunicationChannel
         /// checks the connection status.
         /// </summary>
         /// <returns>True or False</returns>
-        public bool IsConnected()
-        {
-            return Tcp.Client != null && Tcp.Client.Connected;
-        }
+        public bool IsConnected { get; private set; }
+
         /// <summary>
         /// server URL.
         /// </summary>
@@ -190,13 +187,12 @@ namespace CommunicationChannel
         /// </summary>
         public OnErrorEvent OnError;
 
-        private bool CurrentConnectionStatus;
         internal void ConnectionChange(bool status)
         {
-            if (CurrentConnectionStatus != status)
+            if (IsConnected != status)
             {
-                CurrentConnectionStatus = status;
-                OnRouterConnectionChange?.Invoke(CurrentConnectionStatus);
+                IsConnected = status;
+                OnRouterConnectionChange?.Invoke(IsConnected);
             }
         }
 

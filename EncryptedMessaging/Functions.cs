@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using EncryptedMessaging.Resources;
@@ -436,6 +435,7 @@ namespace EncryptedMessaging
             process.StartInfo.FileName = command;
             process.StartInfo.Arguments = parameters; // Note the /c command (*)
             process.StartInfo.UseShellExecute = useShellExecute;
+            process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             process.StartInfo.RedirectStandardOutput = !useShellExecute;
             process.StartInfo.CreateNoWindow = true;
             //if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

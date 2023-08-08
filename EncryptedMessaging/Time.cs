@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http;
 using System.Runtime.InteropServices;
@@ -56,7 +55,7 @@ namespace EncryptedMessaging
                     if (time != null)
                         deltas.Add(DateTime.UtcNow - (DateTime)time);
                 }
-            if (deltas.Count == 0)
+            if (deltas.Count < 3)
             {
                 dateTime = DateTime.UtcNow;
                 return false;

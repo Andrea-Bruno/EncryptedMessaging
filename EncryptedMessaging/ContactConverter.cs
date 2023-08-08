@@ -2,12 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
 using CommunicationChannel;
-using NBitcoin.Crypto;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace EncryptedMessaging
 {

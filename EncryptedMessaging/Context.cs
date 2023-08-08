@@ -1,14 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using CommunicationChannel;
 using SecureStorage;
 using static CommunicationChannel.Channel;
@@ -30,6 +27,7 @@ namespace EncryptedMessaging
         StayConnected = 1,
         /// <summary>
         /// Save contacts permanently. It is the typical client mode, the contacts that are added will be saved and can be reloaded when the application is restarted.
+        /// This parameter in combination with RemoveUnusedContacts will ensure that when the session expires the contact will only be removed from the list (to free up memory), but will still remain in the storage ready to be reloaded when needed.
         /// </summary>
         SaveContacts = 2,
         /// <summary>
@@ -38,7 +36,7 @@ namespace EncryptedMessaging
         /// </summary>
         LoadContacts = 4,
         /// <summary>
-        /// It is a server mode to communicate with a contact, receiving it from him, when there is no more communication a timeout deletes him from the address book to free up memory. A server may need to initiate communications with a large number of contacts, in order not to occupy memory these are dynamically generated thanks to the client who sends his contact before establishing a communication: This operation is called "login", and expires with a timer. It is a similar mechanism to web browsing sessions.
+        /// It is a server mode to communicate with a contact, receiving it from him, when there is no more communication a timeout deletes him from the address book to free up memory. A server may need to initiate communications with a large number of contacts, in order not to occupy memory these are dynamically generated thanks to the client who sends his contact before establishing a communication: This operation is called "login", and expires with a timer. Conceptually is a similar mechanism to web browsing sessions.
         /// </summary>
         RemoveUnusedContacts = 8,
         /// <summary>
@@ -174,7 +172,7 @@ namespace EncryptedMessaging
             // *1* // If you change this value, it must also be changed on the server	
             Channel = new Channel(entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, licenseActivator: license)
             {
-                OnRouterConnectionChange = _OnRouterConnectionChange
+                OnRouterConnectionChange = InvokeOnRouterConnectionChange
             };
             IsRestored = !string.IsNullOrEmpty(privateKeyOrPassphrase);
             if (!IsDisposed)
@@ -184,7 +182,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// A temporary key and value registry made available to the host to temporarily store values
         /// </summary>
-        public  Dictionary<string, object> Session { get; private set; } 
+        public Dictionary<string, object> Session { get; private set; }
         static private bool? tmpInternetAccess;
         /// <summary>
         /// Delegate for the action to be taken when messages arrive
@@ -211,9 +209,12 @@ namespace EncryptedMessaging
         public Action<bool> OnRouterConnectionChange { private get; set; }
         // public Action<bool> OnRouterConnectionChange { set => Channel.OnRouterConnectionChange = value; }
 
-        private void _OnRouterConnectionChange(bool statusConnection)
+        private void InvokeOnRouterConnectionChange(bool statusConnection)
         {
-            Messaging.SendMessagesInQueue();
+            if (statusConnection)
+                Messaging.SendMessagesInQueue();
+            else
+                Contacts.Logout();
             OnRouterConnectionChange?.Invoke(statusConnection);
         }
 
@@ -274,12 +275,12 @@ namespace EncryptedMessaging
         /// Event that occurs when a message has been sent. Use this event to notify the host application when a notification needs to be sent to the recipient.
         /// </summary>
         public event MessageDeliveredEvent OnMessageDelivered;
-        
+
         internal void OnMessageDeliveredInvoke(Contact contact, DateTime deliveredTime, bool isMy)
         {
             if (OnMessageDelivered != null)
-                InvokeOnMainThread(() => OnMessageDelivered?.Invoke(contact, deliveredTime, isMy));       
-        
+                InvokeOnMainThread(() => OnMessageDelivered?.Invoke(contact, deliveredTime, isMy));
+
         }
 
         /// <summary>
@@ -469,7 +470,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Returns the current status of the connection with the router/server
         /// </summary>
-        public bool IsConnected => Channel != null && Channel.IsConnected();
+        public bool IsConnected => Channel != null && Channel.IsConnected;
         /// <summary>
         /// Function that reactivates the connection when it is lost. Its use is designed for all those situations in which the connection could be interrupted, for example mobile applications can interrupt the connection when they are placed in the background. When the application returns to the foreground it is advisable to call this comondo to reactivate the connection.      
         /// If this method is not called, the mobile application returns to the foreground, it could stop working and stop receiving messages, while notifications could arrive anyway if routed with Firebase or other external services.

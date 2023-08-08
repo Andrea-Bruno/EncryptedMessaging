@@ -90,8 +90,11 @@ namespace EncryptedMessaging
 		/// <returns></returns>
 		public byte[] SignHash(byte[] hash256)
 		{
-			var sign = _privateKey.Sign(new uint256(hash256));
-			return sign.ToDER();
+			lock (_privateKey) // It happens that the signature creates a stack overflow exception. Maybe this solves this problem.
+            {
+				var sign = _privateKey.Sign(new uint256(hash256));
+				return sign.ToDER();
+			}
 		}
 
 		//public void SetPrivateKeyBase58(string base58)
@@ -158,7 +161,12 @@ namespace EncryptedMessaging
 		/// </summary>
 		/// <param name="data"></param>
 		/// <returns></returns>
-		public byte[] Encrypt(byte[] data) => _pubKey.Encrypt(data);
+		public byte[] Encrypt(byte[] data) {
+			lock (this) // What happened was that the encryption call gave a stack overflow error. I hypothesized that it may be due to multiple threads calling the function at the same time. If so, then this lock solves the problem.
+            {
+				return _pubKey.Encrypt(data);
+            }
+        }
 
 		/// <summary>
 		/// Decrypts the private key. 
