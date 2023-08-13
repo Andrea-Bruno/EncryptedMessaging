@@ -331,7 +331,7 @@ namespace CommunicationChannel
                 else if (ex.HResult == -2146233088)
                 {
                     exception = new Exception("The router is off or unreachable");
-                    Debugger.Break();
+                    //Debugger.Break();
                 }
                 else
                 {
