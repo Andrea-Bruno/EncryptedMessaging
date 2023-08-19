@@ -85,8 +85,9 @@ namespace CommunicationChannel
         /// Server domain id.
         /// </summary>
         public readonly int Domain;
-        internal void OnDataReceives(byte[] incomingData, out Tuple<ErrorType, string> error, bool directlyWithoutSpooler)
+        internal void OnDataReceives(byte[] incomingData,  bool directlyWithoutSpooler, out Tuple<ErrorType, string> error, out Protocol.Command command)
         {
+            command = default;
             if (incomingData.Length == 0)
             {
                 error = Tuple.Create(ErrorType.WrongDataLength, "incomingData.Length == 0");
@@ -98,13 +99,23 @@ namespace CommunicationChannel
                 error = Tuple.Create(ErrorType.CommandNotSupported, "Command id=" + incomingData[0]);
                 return;
             }
-            var inputType = (Protocol.Command)incomingData[0];
-            if (inputType != Protocol.Command.DataReceivedConfirmation && directlyWithoutSpooler == false)
+            command = (Protocol.Command)incomingData[0];
+            if (command == Protocol.Command.DataReceivedConfirmation)
+            {
+                if (incomingData.Length != 5)
+                {
+                    error = Tuple.Create(ErrorType.WrongDataLength, "incomingData.Length != 5");
+                    return;
+                }
+                var dataId = BitConverter.ToUInt32(incomingData, 1);
+                Spooler.OnConfirmReceipt(dataId);
+            }
+            else if (command != Protocol.Command.DataReceivedConfirmation && directlyWithoutSpooler == false)
             {
                 //Send a confirmation of data received to the server
                 CommandsForServer.DataReceivedConfirmation(incomingData);
             }
-            if (inputType == Protocol.Command.Messages)
+            else if (command == Protocol.Command.Messages)
             {
                 var chatId = Converter.BytesToUlong(incomingData.Skip(1).Take(8));
                 if (!SplitAllPosts(incomingData.Skip(9), out var posts))
@@ -125,21 +136,8 @@ namespace CommunicationChannel
                     else
                         OnMessageArrives?.Invoke(chatId, post);
                 });
-
-                // Separate the task used by the TCP connection from what comes next
-                //new Task(() => posts.ForEach(post =>
-                //    {
-                //        if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
-                //        {
-                //            DuplicatePost++;
-                //            Debugger.Break();
-                //        }
-                //        else
-                //            OnMessageArrives?.Invoke(chatId, post);
-                //    })).Start();
-
             }
-            else if (inputType == Protocol.Command.Ping)
+            else if (command == Protocol.Command.Ping) // Pinging from the server does not reset the connection timeout, otherwise, if the pings occur frequently, the connection will never be closed
             {
                 Debug.WriteLine("ping received!");
             }

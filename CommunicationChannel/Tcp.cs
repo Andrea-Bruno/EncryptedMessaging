@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -60,7 +59,6 @@ namespace CommunicationChannel
         private void OnTimerAutoDisconnect(object o) => Disconnect(false);
         private void SuspendAutoDisconnectTimer()
         {
-
             TimerAutoDisconnect.Change(Timeout.Infinite, Timeout.Infinite);
         }
         private DateTime _timerStartedTime = DateTime.MinValue;
@@ -128,7 +126,7 @@ namespace CommunicationChannel
         // ===============================================================================================================================
 
 
-        private const int _maxDataLength = 64000000; //64 MB - max data length enable to received the server
+        private const int MaxDataLength = 16000000; //16 MB - max data length enable to received the server
         internal TcpClient Client;
         /// <summary>
         /// Send the data, which will be parked in the spooler, cannot be forwarded immediately: If there is a queue or if there is no internet line the data will be parked.
@@ -165,12 +163,12 @@ namespace CommunicationChannel
                         Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
 #endif
                 }
-                if (dataLength > _maxDataLength) { Channel.Spooler.OnSendCompleted(data, new Exception("excess data length"), false); return; }
+                if (dataLength > MaxDataLength) { Channel.Spooler.OnSendCompleted(data, new Exception("Data length over the allowed limit"), false); return; }
                 SuspendAutoDisconnectTimer();
 
                 if (!IsConnected())
                 {
-                    Channel.Spooler.OnSendCompleted(data, new Exception("not connected"), true);
+                    Channel.Spooler.OnSendCompleted(data, new Exception("Not connected"), true);
                 }
                 else
                 {
@@ -331,7 +329,7 @@ namespace CommunicationChannel
                 else if (ex.HResult == -2146233088)
                 {
                     exception = new Exception("The router is off or unreachable");
-                    //Debugger.Break();
+                    Debugger.Break();
                 }
                 else
                 {
@@ -389,6 +387,11 @@ namespace CommunicationChannel
                     LastIN = DateTime.UtcNow;
                     var firstUint = BitConverter.ToUInt32(first4bytes, 0);
                     var dataLength = (int)(0B01111111_11111111_11111111_11111111 & firstUint);
+                    if (dataLength > MaxDataLength) {
+                        Channel.OnTcpError(ErrorType.WrongDataLength, "Data length over the allowed limit");
+                        Disconnect();
+                        return;
+                    }
                     var directlyWithoutSpooler = (firstUint & 0b10000000_00000000_00000000_00000000) != 0;
                     ReadBytes(dataLength, stream, directlyWithoutSpooler);
                 }
@@ -418,7 +421,6 @@ namespace CommunicationChannel
         /// <param name="directlyWithoutSpooler">True if the data was sent without being parked in the spooler (in this case the data arrives at its destination only if the recipient device is connected to the router)</param>
         private void ReadBytes(int lengthIncomingData, NetworkStream stream, bool directlyWithoutSpooler)
         {
-            Debug.WriteLine("RB " + lengthIncomingData);
             var timerStarted = _timerStartedTime;
             SuspendAutoDisconnectTimer();
             byte[] data;
@@ -427,14 +429,12 @@ namespace CommunicationChannel
                 // The server can send several messages in a single data packet
                 data = new byte[lengthIncomingData];
                 var readed = 0;
-                Debug.WriteLine("start download");
+                Debug.WriteLine("Start download" + lengthIncomingData);
                 UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
                 var mb = (double)lengthIncomingData / 1000000;
                 stream.ReadTimeout = TimeOutMs + Convert.ToInt32(mb / LimitMbps);
                 var watch = Stopwatch.StartNew();
-
-
-
+                var checkLength = false;
                 while (readed < lengthIncomingData)
                 {
                     readed += stream.Read(data, readed, lengthIncomingData - readed);
@@ -442,9 +442,13 @@ namespace CommunicationChannel
                     UpdateDownloadSpeed?.Invoke(mbps, readed, lengthIncomingData);
                     LastIN = DateTime.UtcNow;
                     Debug.WriteLine("download " + readed + "\\" + lengthIncomingData + " " + mbps + "mbps" + (readed == lengthIncomingData ? " completed" : ""));
+                    if (checkLength == false && data.Length > 0 && !Enum.IsDefined(typeof(Protocol.Command), data[0]))
+                    {
+                        throw new Exception("Command not supported");
+                    }
+                    checkLength = true;
                 }
-                Debug.WriteLine("RB end " + lengthIncomingData);
-
+                Debug.WriteLine("End download" + lengthIncomingData);
             }
             catch (Exception ex)
             {
@@ -452,41 +456,30 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
-
-            if (data.Length == 5 && data[0] == (byte)Protocol.Command.DataReceivedConfirmation)
-            {
-                var dataId = BitConverter.ToUInt32(data, 1);
-                Channel.Spooler.OnConfirmReceipt(dataId);
-            }
-            Channel.OnDataReceives(data, out var error, directlyWithoutSpooler);
+            Channel.OnDataReceives(data,  directlyWithoutSpooler, out var error, out var command);
             if (error != null)
             {
 #if DEBUG
                 Debugger.Break(); //something went wrong!
 #endif
                 Channel.OnTcpError(error.Item1, error.Item2);
-
-                // ====== START new =======
                 Disconnect();
                 return;
-                // ====== END new =======
             }
-            if (Channel.ConnectionTimeout != Timeout.Infinite)
+            if (command == Protocol.Command.Ping && Channel.ConnectionTimeout != Timeout.Infinite)
             {
-                if (data.Length >= 1 && data[0] == (byte)Protocol.Command.Ping) // Pinging from the server does not reset the connection timeout, otherwise, if the pings occur frequently, the connection will never be closed
-                {
-                    var timePassedMs = (int)(DateTime.UtcNow - timerStarted).TotalMilliseconds;
-                    var remainingTimeMs = Channel.ConnectionTimeout - timePassedMs;
-                    if (remainingTimeMs < 0)
-                        remainingTimeMs = 0; // It will immediately trigger the timer closing the connection
-                    ResumeAutoDisconnectTimer(remainingTimeMs);
-                }
-                else
-                    ResumeAutoDisconnectTimer();
+                var timePassedMs = (int)(DateTime.UtcNow - timerStarted).TotalMilliseconds;
+                var remainingTimeMs = Channel.ConnectionTimeout - timePassedMs;
+                if (remainingTimeMs < 0)
+                    remainingTimeMs = 0; // It will immediately trigger the timer closing the connection
+                ResumeAutoDisconnectTimer(remainingTimeMs);
+            }
+            else
+            {
+                ResumeAutoDisconnectTimer();
             }
             new Task(() => BeginRead(Client)).Start(); // loop - restart reading a new incoming packet. Note: A new task is used to not add the call on this stack, and close the current stack.
         }
-
 
         internal void InvokeError(ErrorType errorId, string description) => Channel.OnTcpError(errorId, description);
 
