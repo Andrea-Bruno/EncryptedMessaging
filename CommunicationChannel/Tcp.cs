@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -148,7 +149,7 @@ namespace CommunicationChannel
         /// <param name="directlyWithoutSpooler">If true, it indicates to the router (server) that it should not park the data if the receiver is not connected</param>
         internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, bool directlyWithoutSpooler = false)
         {
-            var dataLength = (uint)data.Length;
+            var dataLength = data.Length;
             lock (this)
             {
                 if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished)
@@ -188,11 +189,11 @@ namespace CommunicationChannel
                         var mask = 0b10000000_00000000_00000000_00000000;
                         var lastBit = directlyWithoutSpooler ? mask : 0;
                         WaitConfirmationSemaphore = waitConfirmation ? new SemaphoreSlim(0, 1) : null;
-                        var mb = (double)dataLength / 1000000;
-                        stream.WriteTimeout = TimeOutMs + Convert.ToInt32(mb / LimitMbps);
+                        //var mb = (double)dataLength / 1000000;
+                        stream.WriteTimeout = DataTimeout(dataLength); // TimeOutMs + Convert.ToInt32(mb / LimitMbps);
                         Debug.WriteLine("start upload");
                         UpdateDownloadSpeed?.Invoke(0, 0, data.Length);
-                        stream.Write((dataLength | lastBit).GetBytes(), 0, 4);
+                        stream.Write(((uint)dataLength | lastBit).GetBytes(), 0, 4);
                         var watch = Stopwatch.StartNew();
                         LastOUT = DateTime.UtcNow;
                         while (writed < data.Length)
@@ -339,6 +340,13 @@ namespace CommunicationChannel
             }
         }
 
+        public delegate void Speed(double mbps, int partial, int total);
+
+        // Declare the event.
+        public event Speed UpdateDownloadSpeed;
+        public event Speed UpdateUploadSpeed;
+
+
         /// <summary>
         /// Start reading the stream by reading the first 4 bytes which contain the length of the data packet to read
         /// </summary>
@@ -387,7 +395,8 @@ namespace CommunicationChannel
                     LastIN = DateTime.UtcNow;
                     var firstUint = BitConverter.ToUInt32(first4bytes, 0);
                     var dataLength = (int)(0B01111111_11111111_11111111_11111111 & firstUint);
-                    if (dataLength > MaxDataLength) {
+                    if (dataLength > MaxDataLength)
+                    {
                         Channel.OnTcpError(ErrorType.WrongDataLength, "Data length over the allowed limit");
                         Disconnect();
                         return;
@@ -398,6 +407,7 @@ namespace CommunicationChannel
             }
             try
             {
+                stream.ReadTimeout = Timeout.Infinite;
                 stream.BeginRead(first4bytes, 0, 4, onReadLength, client);
             }
             catch (Exception ex)
@@ -407,11 +417,6 @@ namespace CommunicationChannel
             }
         }
 
-        public delegate void Speed(double mbps, int partial, int total);
-
-        // Declare the event.
-        public event Speed UpdateDownloadSpeed;
-        public event Speed UpdateUploadSpeed;
 
         /// <summary>
         /// Read incoming data packet
@@ -430,25 +435,40 @@ namespace CommunicationChannel
                 data = new byte[lengthIncomingData];
                 var readed = 0;
                 Debug.WriteLine("Start download" + lengthIncomingData);
-                UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
-                var mb = (double)lengthIncomingData / 1000000;
-                stream.ReadTimeout = TimeOutMs + Convert.ToInt32(mb / LimitMbps);
                 var watch = Stopwatch.StartNew();
-                var checkLength = false;
+                var first = true;
+                int remaining;
                 while (readed < lengthIncomingData)
                 {
-                    readed += stream.Read(data, readed, lengthIncomingData - readed);
-                    var mbps = Math.Round((readed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
+                    int partialLength; // the reading is broken into smaller pieces in order to have an efficient control over the timeout that indicates the interruption of the data flow
+                    if (first == true)
+                        partialLength = 1; // In the first reading it reads only the first bit in order to immediately check if the packet is valid (the first bit must contain a valid command)
+                    else
+                    {
+                        partialLength = lengthIncomingData - readed;
+                        if (partialLength > 65536)
+                            partialLength = 65536;
+                    }
+                    remaining = lengthIncomingData - readed;
+                    if (partialLength > remaining)
+                        partialLength = remaining;
+                    stream.ReadTimeout = DataTimeout(lengthIncomingData);
+                    readed += stream.Read(data, readed, partialLength);
+                    var mbps = Math.Round((readed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);                    
                     UpdateDownloadSpeed?.Invoke(mbps, readed, lengthIncomingData);
                     LastIN = DateTime.UtcNow;
                     Debug.WriteLine("download " + readed + "\\" + lengthIncomingData + " " + mbps + "mbps" + (readed == lengthIncomingData ? " completed" : ""));
-                    if (checkLength == false && data.Length > 0 && !Enum.IsDefined(typeof(Protocol.Command), data[0]))
+                    if (first == true && readed > 0) // validates the data packet by checking the first byte that must contain a valid command
                     {
-                        throw new Exception("Command not supported");
+                        first = false;
+                        if (!Enum.IsDefined(typeof(Protocol.Command), data[0]))
+                        {
+                            throw new Exception("Command not supported");
+                        }
                     }
-                    checkLength = true;
                 }
                 Debug.WriteLine("End download" + lengthIncomingData);
+                UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
             }
             catch (Exception ex)
             {
@@ -456,7 +476,7 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
-            Channel.OnDataReceives(data,  directlyWithoutSpooler, out var error, out var command);
+            Channel.OnDataReceives(data, directlyWithoutSpooler, out var error, out var command);
             if (error != null)
             {
 #if DEBUG
@@ -480,6 +500,13 @@ namespace CommunicationChannel
             }
             new Task(() => BeginRead(Client)).Start(); // loop - restart reading a new incoming packet. Note: A new task is used to not add the call on this stack, and close the current stack.
         }
+        private int DataTimeout(int dataLength)
+        {
+            var mb = (double)dataLength / 1000000;
+            return 1000 + Convert.ToInt32(mb / LimitMbps);
+
+        }
+
 
         internal void InvokeError(ErrorType errorId, string description) => Channel.OnTcpError(errorId, description);
 
