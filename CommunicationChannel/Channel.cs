@@ -32,7 +32,7 @@ namespace CommunicationChannel
             //ContextIsReady = contextIsReady;
             ConnectionTimeout = connectionTimeout;
             Tcp = new Tcp(this);
-            CommandsForServer = new CommandsForServer(this);
+            CommandsForRouter = new CommandsForServer(this);
             Spooler = new Spooler(this);
             ServerUri = new UriBuilder(serverAddress).Uri; //new Uri(serverAddress);
             OnMessageArrives = onMessageArrives;
@@ -54,7 +54,7 @@ namespace CommunicationChannel
         /// <summary>
         /// class object to use command at server-side.
         /// </summary>
-        public readonly CommandsForServer CommandsForServer;
+        public readonly CommandsForServer CommandsForRouter;
         internal readonly Action<uint> OnDataDeliveryConfirm; // uint parameter is dataId
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace CommunicationChannel
         /// Server domain id.
         /// </summary>
         public readonly int Domain;
-        internal void OnDataReceives(byte[] incomingData,  bool directlyWithoutSpooler, out Tuple<ErrorType, string> error, out Protocol.Command command)
+        internal void OnDataReceives(byte[] incomingData, bool directlyWithoutSpooler, out Tuple<ErrorType, string> error, out Protocol.Command command)
         {
             command = default;
             if (incomingData.Length == 0)
@@ -93,7 +93,6 @@ namespace CommunicationChannel
                 error = Tuple.Create(ErrorType.WrongDataLength, "incomingData.Length == 0");
                 return;
             }
-
             if (!Enum.IsDefined(typeof(Protocol.Command), incomingData[0]))
             {
                 error = Tuple.Create(ErrorType.CommandNotSupported, "Command id=" + incomingData[0]);
@@ -110,13 +109,17 @@ namespace CommunicationChannel
                 var dataId = BitConverter.ToUInt32(incomingData, 1);
                 Spooler.OnConfirmReceipt(dataId);
             }
-            else if (command != Protocol.Command.DataReceivedConfirmation && directlyWithoutSpooler == false)
+            else if (command == Protocol.Command.Ping) // Pinging from the server does not reset the connection timeout, otherwise, if the pings occur frequently, the connection will never be closed
             {
-                //Send a confirmation of data received to the server
-                CommandsForServer.DataReceivedConfirmation(incomingData);
+                Debug.WriteLine("ping received!");
             }
             else if (command == Protocol.Command.Messages)
             {
+                if (!directlyWithoutSpooler)
+                {
+                    //Send a confirmation of data received to the server
+                    CommandsForRouter.DataReceivedConfirmation(incomingData);
+                }
                 var chatId = Converter.BytesToUlong(incomingData.Skip(1).Take(8));
                 if (!SplitAllPosts(incomingData.Skip(9), out var posts))
                 {
@@ -136,10 +139,6 @@ namespace CommunicationChannel
                     else
                         OnMessageArrives?.Invoke(chatId, post);
                 });
-            }
-            else if (command == Protocol.Command.Ping) // Pinging from the server does not reset the connection timeout, otherwise, if the pings occur frequently, the connection will never be closed
-            {
-                Debug.WriteLine("ping received!");
             }
             error = null;
         }

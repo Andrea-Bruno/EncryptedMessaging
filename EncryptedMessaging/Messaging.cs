@@ -331,7 +331,7 @@ namespace EncryptedMessaging
                 @params.ToContact.Save();
                 ShowMessage(message, true);
             }
-            Context.Channel.CommandsForServer.SendPostToServer(@params.ToContact != null ? @params.ToContact.ChatId : (ulong)@params.ChatId, dataPost, @params.DirectlyWithoutSpooler);
+            Context.Channel.CommandsForRouter.SendPostToServer(@params.ToContact != null ? @params.ToContact.ChatId : (ulong)@params.ChatId, dataPost, @params.DirectlyWithoutSpooler);
         }
 
         private bool AlreadyTrySwitchOnConnectivity;

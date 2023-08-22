@@ -1,9 +1,9 @@
 ﻿namespace CommunicationChannel
 {
-	/// <summary>
-	/// 
-	/// </summary>
-	public static class Protocol
+    /// <summary>
+    /// Class that defines the communication protocol commands
+    /// </summary>
+    public static class Protocol
 	{
 		/// <summary>
 		/// Defines the protocols for the communication channel
@@ -22,14 +22,14 @@
 			/// 2 represents that server is pinged
 			/// </summary>
 			Ping = 2,
-			/// <summary>
-			/// 3 represents that new post is set
-			/// </summary>
-			SetNewpost = 3,
-			/// <summary>
-			/// 4 represents messages
-			/// </summary>
-			Messages = 4,
+            /// <summary>
+            /// 3 send the router a message for another client
+            /// </summary>
+            SetNewpost = 3,
+            /// <summary>
+            /// 4 represents messages of another client arriving from the router
+            /// </summary>
+            Messages = 4,
 		}
 	}
 }

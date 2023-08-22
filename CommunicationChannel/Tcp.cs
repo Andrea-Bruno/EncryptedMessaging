@@ -74,7 +74,7 @@ namespace CommunicationChannel
 
         // =============== keep alive timer ==============================================================================================
         internal readonly Timer TimerKeepAlive;
-        internal readonly static TimeSpan KeepAliveInterval = TimeSpan.FromSeconds(120); // Milliseconds (NOTE: This value must be identical in the CommunicationChannel and RouterServer projects)
+        internal readonly static TimeSpan KeepAliveInterval = TimeSpan.FromMinutes(5); // IMPORTANT: This value must be identical in the CommunicationChannel and RouterServer projects
         private void OnTimerKeepAlive(object o)
         {
             //bool pingable = Ping();
@@ -103,15 +103,23 @@ namespace CommunicationChannel
                 }
 #endif
             }
-
-            var lastTimeLimitIN = KeepAliveInterval.Add(TimeSpan.FromSeconds(60)); // add a security margin
-            var timeFromLastIN = DateTime.UtcNow - LastIN;
-            var isInTimeOut = LastIN != default && timeFromLastIN > lastTimeLimitIN;
-
-            if (IsConnected() && !isInTimeOut)
+            if (IsConnected() && !ConnectionIsDead())
                 TimerKeepAlive.Change(KeepAliveInterval, Timeout.InfiniteTimeSpan); // restart again
             else
                 Disconnect();
+        }
+
+        /// <summary>
+        /// Indicates whether the connection has timed out based on the last data transmission.
+        /// Since the ping messages occur in persiodic mode, a lack of communication means beyond a certain period, they mean that the transmission is interrupted.
+        /// </summary>
+        /// <returns>True if the communication has timed out</returns>
+        private bool ConnectionIsDead()
+        {
+            // NOTE: This routine must be equal in CommunicationChannel and RouterServer project with LastIN and LastOUT reversed
+            var timeOut = KeepAliveInterval.Add(TimeSpan.FromSeconds(60)); // add a security margin
+            var timeFromLastIN = DateTime.UtcNow - LastIN;
+            return LastIN != default && timeFromLastIN > timeOut;
         }
 
         private void KeepAliveStart()
@@ -292,7 +300,7 @@ namespace CommunicationChannel
                 OnConnectedSemaphore = null;
                 Channel.ConnectionChange(true);
             };
-            var data = Channel.CommandsForServer.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
+            var data = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
             OnConnectedSemaphore = new SemaphoreSlim(0, 1);
             ExecuteSendData(data, startSpooler);
             OnConnectedSemaphore?.Wait(TimeOutMs);
@@ -306,7 +314,8 @@ namespace CommunicationChannel
                 var addresses = Dns.GetHostAddresses(Channel.ServerUri.Host).Reverse().ToArray();
                 Client = new TcpClient
                 {
-                    LingerState = new LingerOption(true, 0)
+                    LingerState = new LingerOption(true, 0), // Close the connection immediately after the Close() method
+                  
                 };
                 var watch = Stopwatch.StartNew();
                 if (!Client.ConnectAsync(addresses, port).Wait(TimeOutMs)) // ms timeout
@@ -500,11 +509,10 @@ namespace CommunicationChannel
             }
             new Task(() => BeginRead(Client)).Start(); // loop - restart reading a new incoming packet. Note: A new task is used to not add the call on this stack, and close the current stack.
         }
-        private int DataTimeout(int dataLength)
+        private static int DataTimeout(int dataLength)
         {
             var mb = (double)dataLength / 1000000;
             return 1000 + Convert.ToInt32(mb / LimitMbps);
-
         }
 
 
