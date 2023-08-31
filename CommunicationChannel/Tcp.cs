@@ -13,31 +13,16 @@ namespace CommunicationChannel
     /// <summary>
     /// This class is used for establishing link connection and communicating with the server.
     /// </summary>
-    internal class Tcp : IDisposable
+    internal partial class Tcp : IDisposable
     {
         internal Tcp(Channel channel)
         {
             Channel = channel;
-            TryReconnection = new Timer(OnTryReconnection, null, Timeout.Infinite, Timeout.Infinite);
-            TimerAutoDisconnect = new Timer(OnTimerAutoDisconnect, null, Timeout.Infinite, Timeout.Infinite);
-            TimerKeepAlive = new Timer(OnTimerKeepAlive, null, Timeout.Infinite, Timeout.Infinite);
+            TryReconnection = new Timer(OnTryReconnection);
+            TimerAutoDisconnect = new Timer((o) => Disconnect(false));
+            TimerKeepAlive = new Timer(OnTimerKeepAlive);
         }
         internal readonly Channel Channel;
-        /// <summary>
-        /// When was the last data reception (Utc)
-        /// </summary>
-        public DateTime LastIN { get { return _LastIN; } internal set { KeepAliveStart(); _LastIN = value; } } // KeepAliveStart() = The arrival of the received data is the confirmation that the connection is still present. The data transmitted under WSL does not generate an error even if there is no more internet line
-        private DateTime _LastIN;
-
-        /// <summary>
-        /// When was the last data transmission (Utc)
-        /// </summary>
-        public DateTime LastOUT { get; internal set; }
-
-        /// <summary>
-        /// the last moment in which there was data transmission (in reception or transmission). Utc value.
-        /// </summary>
-        public DateTime LastCommunication => LastIN > LastOUT ? LastIN : LastOUT;
 
 
         // =================== This timer checks if the connection has been lost and reestablishes it ====================================
@@ -57,80 +42,13 @@ namespace CommunicationChannel
         // =================== This timer automatically closes the connection after a certain period of network inactivity ===============
         //public int ConnectionTimeout = Timeout.Infinite;
         private readonly Timer TimerAutoDisconnect;
-        private void OnTimerAutoDisconnect(object o) => Disconnect(false);
         private void SuspendAutoDisconnectTimer()
         {
             TimerAutoDisconnect.Change(Timeout.Infinite, Timeout.Infinite);
         }
-        private DateTime _timerStartedTime = DateTime.MinValue;
-        private void ResumeAutoDisconnectTimer(int? connectionTimeout = null)
+        private void ResumeAutoDisconnectTimer()
         {
-            if (connectionTimeout == null)
-                _timerStartedTime = DateTime.UtcNow;
-            if (Channel.ConnectionTimeout != Timeout.Infinite)
-                TimerAutoDisconnect.Change(connectionTimeout != null ? (int)connectionTimeout : Channel.ConnectionTimeout, Timeout.Infinite);
-        }
-        // ===============================================================================================================================
-
-        // =============== keep alive timer ==============================================================================================
-        internal readonly Timer TimerKeepAlive;
-        internal readonly static TimeSpan KeepAliveInterval = TimeSpan.FromMinutes(5); // IMPORTANT: This value must be identical in the CommunicationChannel and RouterServer projects
-        private void OnTimerKeepAlive(object o)
-        {
-            //bool pingable = Ping();
-
-            try
-            {
-                var stream = Client?.GetStream();
-                stream?.Write(new byte[] { 0, 0, 0, 0 }, 0, 4); // The server responds to this command with a ping command which will update the time of the last incoming data packet LastIN
-                stream?.Flush();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-                Channel.KeepAliveFailures++;
-#if DEBUG
-                switch (ex.HResult)
-                {
-                    case -2146233079: // The server is pinging and may have dropped the connection because it is not responding during debugging. If the error is not the same, then it breaks on the next line
-                        break;
-                    case -2146232800: // Unable to write data to the transport connection: An established connection was aborted by the software in your host machine: Connection interrupted by the current machine! Is there a problem with the connection timeout?
-                        Debugger.Break();
-                        break;
-                    default:
-                        Debugger.Break();
-                        break;
-                }
-#endif
-            }
-            if (IsConnected() && !ConnectionIsDead())
-                TimerKeepAlive.Change(KeepAliveInterval, Timeout.InfiniteTimeSpan); // restart again
-            else
-                Disconnect();
-        }
-
-        /// <summary>
-        /// Indicates whether the connection has timed out based on the last data transmission.
-        /// Since the ping messages occur in persiodic mode, a lack of communication means beyond a certain period, they mean that the transmission is interrupted.
-        /// </summary>
-        /// <returns>True if the communication has timed out</returns>
-        private bool ConnectionIsDead()
-        {
-            // NOTE: This routine must be equal in CommunicationChannel and RouterServer project with LastIN and LastOUT reversed
-            var timeOut = KeepAliveInterval.Add(TimeSpan.FromSeconds(60)); // add a security margin
-            var timeFromLastIN = DateTime.UtcNow - LastIN;
-            return LastIN != default && timeFromLastIN > timeOut;
-        }
-
-        private void KeepAliveStart()
-        {
-            if (Channel.ConnectionTimeout == Timeout.Infinite) //I'm a server
-                TimerKeepAlive.Change(KeepAliveInterval, Timeout.InfiniteTimeSpan);
-        }
-        private void KeepAliveStop()
-        {
-            if (Channel.ConnectionTimeout == Timeout.Infinite) //I'm a server
-                TimerKeepAlive.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            TimerAutoDisconnect.Change(Channel.ConnectionTimeout, Timeout.Infinite);
         }
         // ===============================================================================================================================
 
@@ -157,107 +75,107 @@ namespace CommunicationChannel
         /// <param name="directlyWithoutSpooler">If true, it indicates to the router (server) that it should not park the data if the receiver is not connected</param>
         internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, bool directlyWithoutSpooler = false)
         {
-            var dataLength = data.Length;
-            lock (this)
+            Task.Run(() =>
             {
-                if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished)
+                lock (this)
                 {
-                    SpinWait.SpinUntil(() => Logged, 5000);
+                    var dataLength = data.Length;
+                    if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished)
+                    {
+                        SpinWait.SpinUntil(() => Logged, 5000);
 #if DEBUG
 
-                    Debug.WriteLine(Channel.ServerUri); // Current entry point
-                    if (directlyWithoutSpooler)
-                        Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
+                        Debug.WriteLine(Channel.ServerUri); // Current entry point
+                        if (directlyWithoutSpooler)
+                            Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
+                        else
+                            Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
+#endif
+                    }
+                    if (dataLength > MaxDataLength) { Channel.Spooler.OnSendCompleted(data, new Exception("Data length over the allowed limit"), false); return; }
+
+                    if (!IsConnected())
+                    {
+                        Channel.Spooler.OnSendCompleted(data, new Exception("Not connected"), true);
+                    }
                     else
-                        Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
-#endif
-                }
-                if (dataLength > MaxDataLength) { Channel.Spooler.OnSendCompleted(data, new Exception("Data length over the allowed limit"), false); return; }
-                SuspendAutoDisconnectTimer();
-
-                if (!IsConnected())
-                {
-                    Channel.Spooler.OnSendCompleted(data, new Exception("Not connected"), true);
-                }
-                else
-                {
-                    var command = (Protocol.Command)data[0];
-                    // var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation && command != Protocol.Command.ConnectionEstablished;
-                    var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation;
-                    var writed = 0;
-                    var mbps = 0d;
-#if RELEASE
-
-                    try
                     {
+                        var command = (Protocol.Command)data[0];
+                        Channel.LastCommandOUT = command;
+                        if (command != Protocol.Command.Ping)
+                            SuspendAutoDisconnectTimer();
+                        // var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation && command != Protocol.Command.ConnectionEstablished;
+                        var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation;
+                        var writed = 0;
+                        var mbps = 0d;
+                        try
+                        {
+                            var stream = Client.GetStream();
+                            var mask = 0b10000000_00000000_00000000_00000000;
+                            var lastBit = directlyWithoutSpooler ? mask : 0;
+                            WaitConfirmationSemaphore = waitConfirmation ? new SemaphoreSlim(0, 1) : null;
+                            //var mb = (double)dataLength / 1000000;
+                            stream.WriteTimeout = DataTimeout(dataLength); // TimeOutMs + Convert.ToInt32(mb / LimitMbps);
+                            Debug.WriteLine("start upload");
+                            UpdateDownloadSpeed?.Invoke(0, 0, data.Length);
+                            stream.Write(((uint)dataLength | lastBit).GetBytes(), 0, 4);
+                            var watch = Stopwatch.StartNew();
+                            Channel.LastOUT = DateTime.UtcNow;
+                            while (writed < data.Length)
+                            {
+                                var toWrite = data.Length - writed;
+                                if (toWrite > 65536) // limit a block to 64k to show progress barr by event UpdateDownloadSpeed
+                                    toWrite = 65536;
+                                stream.Write(data, writed, toWrite);
+                                writed += toWrite;
+                                mbps = Math.Round((writed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
+                                UpdateDownloadSpeed?.Invoke(mbps, writed, data.Length);
+                                Channel.LastOUT = DateTime.UtcNow;
+                                Debug.WriteLine("upload " + writed + "\\" + data.Length + " " + mbps + "mbps" + (writed == data.Length ? " completed" : ""));
+                            }
+                            stream.Flush();
+                            //watch.Stop();
+                            //var elapsedMs = watch.ElapsedMilliseconds;
+                            //if (elapsedMs > 300)
+                            //{
+                            //    Debugger.Break();
+                            //}
+                            if (WaitConfirmationSemaphore != null && WaitConfirmationSemaphore.CurrentCount != 1 && !WaitConfirmationSemaphore.Wait(stream.WriteTimeout))
+                            {
+                                if (command == Protocol.Command.ConnectionEstablished)
+                                {
+                                    Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + ": Unable to connect to router");
+                                    Console.WriteLine("Has the license expired? Or the router has no more licenses available and refuses the connection of new devices.");
+#if DEBUG
+                                    Debugger.Break();
 #endif
-                    lock (this)
-                    {
-                        var stream = Client.GetStream();
-                        var mask = 0b10000000_00000000_00000000_00000000;
-                        var lastBit = directlyWithoutSpooler ? mask : 0;
-                        WaitConfirmationSemaphore = waitConfirmation ? new SemaphoreSlim(0, 1) : null;
-                        //var mb = (double)dataLength / 1000000;
-                        stream.WriteTimeout = DataTimeout(dataLength); // TimeOutMs + Convert.ToInt32(mb / LimitMbps);
-                        Debug.WriteLine("start upload");
-                        UpdateDownloadSpeed?.Invoke(0, 0, data.Length);
-                        stream.Write(((uint)dataLength | lastBit).GetBytes(), 0, 4);
-                        var watch = Stopwatch.StartNew();
-                        LastOUT = DateTime.UtcNow;
-                        while (writed < data.Length)
-                        {
-                            var toWrite = data.Length - writed;
-                            if (toWrite > 65536) // limit a block to 64k to show progress barr by event UpdateDownloadSpeed
-                                toWrite = 65536;
-                            stream.Write(data, writed, toWrite);
-                            writed += toWrite;
-                            mbps = Math.Round((writed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
-                            UpdateDownloadSpeed?.Invoke(mbps, writed, data.Length);
-                            LastOUT = DateTime.UtcNow;
-                            Debug.WriteLine("upload " + writed + "\\" + data.Length + " " + mbps + "mbps" + (writed == data.Length ? " completed" : ""));
-                        }
-                        //stream.Flush();
-                        //watch.Stop();
-                        //var elapsedMs = watch.ElapsedMilliseconds;
-                        //if (elapsedMs > 300)
-                        //{
-                        //    Debugger.Break();
-                        //}
-                        if (WaitConfirmationSemaphore == null || WaitConfirmationSemaphore.CurrentCount == 1 || WaitConfirmationSemaphore.Wait(stream.WriteTimeout))
-                        {
+                                }
+                                // wait timed out
+                                Debugger.Break();
+                                Channel.Spooler.OnSendCompleted(data, new Exception("time-out"), true);
+                                Disconnect();
+                                return;
+                            }
                             // confirmation received                              
                             if (waitConfirmation)
                             {
                                 executeOnConfirmReceipt?.Invoke();
                                 Channel.Spooler.OnSendCompleted(data, null, false);
                             }
-                            ResumeAutoDisconnectTimer();
+                            if (command != Protocol.Command.Ping)
+                                ResumeAutoDisconnectTimer();
                             if (Logged)
                                 Channel.Spooler.SendNext(); //Upon receipt confirmation, sends the next message
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            if (command == Protocol.Command.ConnectionEstablished)
-                            {
-                                Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + ": Unable to connect to router");
-                                Console.WriteLine("Has the license expired? Or the router has no more licenses available and refuses the connection of new devices.");
-#if DEBUG
-                                //                                    Debugger.Break();
-#endif
-                            }
-                            // wait timed out
-                            Channel.Spooler.OnSendCompleted(data, new Exception("time-out"), true);
+                            //Debugger.Break();
+                            Channel.Spooler.OnSendCompleted(data, ex, true);
+                            Disconnect();
                         }
                     }
-#if RELEASE
-                    }
-                    catch (Exception ex)
-                    {
-                        Channel.Spooler.OnSendCompleted(data, ex, true);
-                    }
-#endif
                 }
-            }
+            });
         }
 
         /// <summary>
@@ -315,7 +233,7 @@ namespace CommunicationChannel
                 Client = new TcpClient
                 {
                     LingerState = new LingerOption(true, 0), // Close the connection immediately after the Close() method
-                  
+
                 };
                 var watch = Stopwatch.StartNew();
                 if (!Client.ConnectAsync(addresses, port).Wait(TimeOutMs)) // ms timeout
@@ -401,7 +319,6 @@ namespace CommunicationChannel
                 }
                 else
                 {
-                    LastIN = DateTime.UtcNow;
                     var firstUint = BitConverter.ToUInt32(first4bytes, 0);
                     var dataLength = (int)(0B01111111_11111111_11111111_11111111 & firstUint);
                     if (dataLength > MaxDataLength)
@@ -435,8 +352,7 @@ namespace CommunicationChannel
         /// <param name="directlyWithoutSpooler">True if the data was sent without being parked in the spooler (in this case the data arrives at its destination only if the recipient device is connected to the router)</param>
         private void ReadBytes(int lengthIncomingData, NetworkStream stream, bool directlyWithoutSpooler)
         {
-            var timerStarted = _timerStartedTime;
-            SuspendAutoDisconnectTimer();
+            Protocol.Command command = default;
             byte[] data;
             try
             {
@@ -463,9 +379,8 @@ namespace CommunicationChannel
                         partialLength = remaining;
                     stream.ReadTimeout = DataTimeout(lengthIncomingData);
                     readed += stream.Read(data, readed, partialLength);
-                    var mbps = Math.Round((readed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);                    
+                    var mbps = Math.Round((readed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
                     UpdateDownloadSpeed?.Invoke(mbps, readed, lengthIncomingData);
-                    LastIN = DateTime.UtcNow;
                     Debug.WriteLine("download " + readed + "\\" + lengthIncomingData + " " + mbps + "mbps" + (readed == lengthIncomingData ? " completed" : ""));
                     if (first == true && readed > 0) // validates the data packet by checking the first byte that must contain a valid command
                     {
@@ -474,7 +389,12 @@ namespace CommunicationChannel
                         {
                             throw new Exception("Command not supported");
                         }
+                        command = (Protocol.Command)data[0];
+                        Channel.LastCommandIN = command;
+                        if (command != Protocol.Command.Ping)
+                            SuspendAutoDisconnectTimer();
                     }
+                    Channel.LastIN = DateTime.UtcNow;
                 }
                 Debug.WriteLine("End download" + lengthIncomingData);
                 UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
@@ -485,7 +405,7 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
-            Channel.OnDataReceives(data, directlyWithoutSpooler, out var error, out var command);
+            Channel.OnDataReceives(data, directlyWithoutSpooler, out var error, out var _);
             if (error != null)
             {
 #if DEBUG
@@ -495,26 +415,15 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
-            if (command == Protocol.Command.Ping && Channel.ConnectionTimeout != Timeout.Infinite)
-            {
-                var timePassedMs = (int)(DateTime.UtcNow - timerStarted).TotalMilliseconds;
-                var remainingTimeMs = Channel.ConnectionTimeout - timePassedMs;
-                if (remainingTimeMs < 0)
-                    remainingTimeMs = 0; // It will immediately trigger the timer closing the connection
-                ResumeAutoDisconnectTimer(remainingTimeMs);
-            }
-            else
-            {
+            if (command != Protocol.Command.Ping)
                 ResumeAutoDisconnectTimer();
-            }
             new Task(() => BeginRead(Client)).Start(); // loop - restart reading a new incoming packet. Note: A new task is used to not add the call on this stack, and close the current stack.
         }
         private static int DataTimeout(int dataLength)
         {
             var mb = (double)dataLength / 1000000;
-            return 1000 + Convert.ToInt32(mb / LimitMbps);
+            return 10000 + Convert.ToInt32(mb / LimitMbps);
         }
-
 
         internal void InvokeError(ErrorType errorId, string description) => Channel.OnTcpError(errorId, description);
 

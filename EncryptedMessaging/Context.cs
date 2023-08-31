@@ -170,7 +170,7 @@ namespace EncryptedMessaging
             if (licenseActivator != null)
                 license = new Tuple<ulong, Func<byte[], byte[]>>(licenseActivator.IdOEM, licenseActivator.SignLogin);
             // *1* // If you change this value, it must also be changed on the server	
-            Channel = new Channel(entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, licenseActivator: license)
+            Channel = new Channel(entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, license, ExecuteOnErrorChennal)
             {
                 OnRouterConnectionChange = InvokeOnRouterConnectionChange
             };
@@ -201,7 +201,12 @@ namespace EncryptedMessaging
         /// <summary>
         /// Communication event manager. Set up an action for this handler to get feedback on communication errors
         /// </summary>
-        public OnErrorEvent OnCommunicationErrorEvent { get => Channel.OnError; set => Channel.OnError = value; }
+        public OnErrorEvent OnCommunicationErrorEvent; // { get => Channel.OnError; set => Channel.OnError = value; }
+        
+        private void ExecuteOnErrorChennal(Channel.ErrorType errorType, string description )
+        {
+            OnCommunicationErrorEvent?.Invoke(errorType, description);
+        }
 
         /// <summary>
         /// Function that acts as an event and will be called when the connection was successful and the client is logged into the router (return true), or when the connection with the router is lost (return false). You can set this action as an event.
@@ -463,6 +468,27 @@ namespace EncryptedMessaging
 
         internal readonly int NetworkId;
         internal readonly Channel Channel;
+        /// <summary>
+        /// The latest reception on the data channel (utc)
+        /// </summary>
+        public DateTime LastIN => Channel.LastIN;
+        /// <summary>
+        /// The latest protocol command reception on the data channel
+        /// </summary>
+        public Protocol.Command LastCommandIN => Channel.LastCommandIN;
+        /// <summary>
+        /// The last transmission on the data channel (utc)
+        /// </summary>
+        public DateTime LastOUT => Channel.LastOUT;
+        /// <summary>
+        /// The last protocol command transmission on the data channel
+        /// </summary>
+        public Protocol.Command LastCommandOUT => Channel.LastCommandOUT;
+        /// <summary>
+        /// The last time KeepAlive was performed for checking the data communication channel (Utc)
+        /// </summary>
+        public DateTime LastKeepAliveCheck => Channel.LastKeepAliveCheck;
+
         /// <summary>
         /// Number of failure connection
         /// </summary>

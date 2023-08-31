@@ -42,6 +42,36 @@ namespace CommunicationChannel
                 Channels.Add(this);
             }
         }
+        /// <summary>
+        /// When was the last data reception (Utc)
+        /// </summary>
+        public DateTime LastIN { get { return _LastIN; } internal set { Tcp.KeepAliveStart(); _LastIN = value; } } // KeepAliveStart() = The arrival of the received data is the confirmation that the connection is still present. The data transmitted under WSL does not generate an error even if there is no more internet line
+        /// <summary>
+        /// The last command that was received from the router
+        /// </summary>
+        public Protocol.Command LastCommandIN { get; internal set; }
+        private DateTime _LastIN = DateTime.UtcNow;
+
+        /// <summary>
+        /// When was the last data transmission (Utc)
+        /// </summary>
+        public DateTime LastOUT { get; internal set; }
+        /// <summary>
+        /// The last command that was sent to the router
+        /// </summary>
+        public Protocol.Command LastCommandOUT { get; internal set; }
+        /// <summary>
+        /// The last time KeepAlive was performed for checking the data communication channel (Utc)
+        /// </summary>
+        public DateTime LastKeepAliveCheck { get; internal set; }
+
+        /// <summary>
+        /// the last moment in which there was data transmission (in reception or transmission). Utc value.
+        /// </summary>
+        public DateTime LastCommunication => LastIN > LastOUT ? LastIN : LastOUT;
+
+
+
         internal readonly Tuple<ulong, Func<byte[], byte[]>> LicenseActivator;
         private static readonly List<Channel> Channels = new List<Channel>();
         internal readonly Func<bool> ContextIsReady = null;
@@ -128,16 +158,29 @@ namespace CommunicationChannel
                 }
                 PostCounter++;
                 LastPostParts = posts.Count;
-
-                posts.ForEach(post =>
+                System.Threading.Tasks.Task.Run(() =>
                 {
-                    if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
+
+                //    new Thread(() =>
+                //{
+
+                    lock (OnMessageArrives)
                     {
-                        DuplicatePost++;
-                        Debugger.Break();
+                        posts.ForEach(post =>
+                        {
+                            if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
+                            {
+                                DuplicatePost++;
+                                Debugger.Break();
+                            }
+                            else
+                            {
+                                OnMessageArrives?.Invoke(chatId, post);
+                            }
+                        });
                     }
-                    else
-                        OnMessageArrives?.Invoke(chatId, post);
+                //}).Start();
+
                 });
             }
             error = null;
@@ -152,9 +195,12 @@ namespace CommunicationChannel
             if (LogError)
             {
                 ErrorLog += DateTime.UtcNow.ToString("MM/dd/yyyy HH:mm:ss") + " " + Status + ": " + description + "\r\n";
-                RefreshLogError?.Invoke(ErrorLog);
+
+                if (RefreshLogError != null)
+                    System.Threading.Tasks.Task.Run(() => RefreshLogError?.Invoke(ErrorLog));
             }
-            OnError?.Invoke(errorId, description);
+            if (OnError != null)
+                System.Threading.Tasks.Task.Run(() => OnError?.Invoke(errorId, description));
         }
 
         /// <summary>
@@ -182,14 +228,15 @@ namespace CommunicationChannel
         /// <summary>
         /// It is used as an event to handle the reporting of errors to the host. If set in the initialization phase, this delegate will be called at each tcp error, to notify the type of error and its description
         /// </summary>
-        public OnErrorEvent OnError;
+        private readonly OnErrorEvent OnError;
 
         internal void ConnectionChange(bool status)
         {
             if (IsConnected != status)
             {
                 IsConnected = status;
-                OnRouterConnectionChange?.Invoke(IsConnected);
+                if (OnRouterConnectionChange != null)
+                    System.Threading.Tasks.Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
             }
         }
 
