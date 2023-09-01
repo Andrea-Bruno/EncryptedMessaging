@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -75,23 +74,26 @@ namespace CommunicationChannel
         /// <param name="directlyWithoutSpooler">If true, it indicates to the router (server) that it should not park the data if the receiver is not connected</param>
         internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, bool directlyWithoutSpooler = false)
         {
+            var dataLength = data.Length;
+            if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished)
+            {
+                SpinWait.SpinUntil(() => Logged, 10000);
+#if DEBUG
+                if (!Logged)
+                {
+                    Debug.WriteLine(Channel.ServerUri); // Current entry point
+                    if (directlyWithoutSpooler)
+                        Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
+                    else
+                        Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
+                }
+#endif
+            }
             Task.Run(() =>
             {
                 lock (this)
                 {
-                    var dataLength = data.Length;
-                    if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished)
-                    {
-                        SpinWait.SpinUntil(() => Logged, 5000);
-#if DEBUG
 
-                        Debug.WriteLine(Channel.ServerUri); // Current entry point
-                        if (directlyWithoutSpooler)
-                            Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
-                        else
-                            Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
-#endif
-                    }
                     if (dataLength > MaxDataLength) { Channel.Spooler.OnSendCompleted(data, new Exception("Data length over the allowed limit"), false); return; }
 
                     if (!IsConnected())
