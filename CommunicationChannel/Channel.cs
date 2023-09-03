@@ -45,7 +45,7 @@ namespace CommunicationChannel
         /// <summary>
         /// When was the last data reception (Utc)
         /// </summary>
-        public DateTime LastIN { get { return _LastIN; } internal set { Tcp.KeepAliveStart(); _LastIN = value; } } // KeepAliveStart() = The arrival of the received data is the confirmation that the connection is still present. The data transmitted under WSL does not generate an error even if there is no more internet line
+        public DateTime LastIN { get { return _LastIN; } internal set { Tcp.KeepAliveRestart(); _LastIN = value; } } // KeepAliveRestart() = The arrival of the received data is the confirmation that the connection is still present. The data transmitted under WSL does not generate an error even if there is no more internet line
         /// <summary>
         /// The last command that was received from the router
         /// </summary>

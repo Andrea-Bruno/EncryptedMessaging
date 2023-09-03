@@ -35,9 +35,7 @@ namespace CommunicationChannel
                 }
 #endif
             }
-            if (IsConnected() && !ConnectionIsDead())
-                TimerKeepAlive.Change(KeepAliveInterval, Timeout.InfiniteTimeSpan); // restart again
-            else
+            if (!IsConnected() || ConnectionIsDead())
             {
                 Debugger.Break();
                 Disconnect();
@@ -57,7 +55,7 @@ namespace CommunicationChannel
             return timeFromLastIN > timeOut;
         }
 
-        internal void KeepAliveStart() => TimerKeepAlive.Change(KeepAliveInterval, Timeout.InfiniteTimeSpan);
-        internal void KeepAliveStop() => TimerKeepAlive.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        internal void KeepAliveRestart() => TimerKeepAlive.Change(KeepAliveInterval, KeepAliveInterval);
+        internal void KeepAliveSuspend() => TimerKeepAlive.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 }

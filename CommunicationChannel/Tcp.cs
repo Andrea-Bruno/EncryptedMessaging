@@ -196,7 +196,7 @@ namespace CommunicationChannel
                     if (exception == null)
                     {
                         OnCennected();
-                        KeepAliveStart();
+                        KeepAliveRestart();
                         return true;
                     }
                     Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
@@ -365,6 +365,7 @@ namespace CommunicationChannel
                 var watch = Stopwatch.StartNew();
                 var first = true;
                 int remaining;
+                var timeOutAt = DateTime.UtcNow.AddMilliseconds(DataTimeout(lengthIncomingData));
                 while (readed < lengthIncomingData)
                 {
                     int partialLength; // the reading is broken into smaller pieces in order to have an efficient control over the timeout that indicates the interruption of the data flow
@@ -379,7 +380,7 @@ namespace CommunicationChannel
                     remaining = lengthIncomingData - readed;
                     if (partialLength > remaining)
                         partialLength = remaining;
-                    stream.ReadTimeout = DataTimeout(lengthIncomingData);
+                    stream.ReadTimeout = DataTimeout(partialLength);
                     readed += stream.Read(data, readed, partialLength);
                     var mbps = Math.Round((readed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
                     UpdateDownloadSpeed?.Invoke(mbps, readed, lengthIncomingData);
@@ -397,6 +398,8 @@ namespace CommunicationChannel
                             SuspendAutoDisconnectTimer();
                     }
                     Channel.LastIN = DateTime.UtcNow;
+                    if (DateTime.UtcNow >= timeOutAt)
+                        throw new Exception("Data read timeout");
                 }
                 Debug.WriteLine("End download" + lengthIncomingData);
                 UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
@@ -421,6 +424,11 @@ namespace CommunicationChannel
                 ResumeAutoDisconnectTimer();
             new Task(() => BeginRead(Client)).Start(); // loop - restart reading a new incoming packet. Note: A new task is used to not add the call on this stack, and close the current stack.
         }
+        /// <summary>
+        /// Calculate a reasonable timeout (in milliseconds) for transmitting a data packet, based on the length of the transmitted data.
+        /// </summary>
+        /// <param name="dataLength">The length of the data on which to calculate the timeout</param>
+        /// <returns>Milliseconds</returns>
         private static int DataTimeout(int dataLength)
         {
             var mb = (double)dataLength / 1000000;
@@ -442,13 +450,10 @@ namespace CommunicationChannel
                 if (Client != null) // Do not disconnect again
                 {
                     Logged = false;
-                    KeepAliveStop();
+                    KeepAliveSuspend();
                     SuspendAutoDisconnectTimer();
-                    if (Client != null)
-                    {
-                        Client.Close();
-                        Client.Dispose();
-                    }
+                    Client?.Close();
+                    Client?.Dispose();
                     Client = null;
                     Channel.ConnectionChange(false);
                 }
