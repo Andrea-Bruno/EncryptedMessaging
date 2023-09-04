@@ -345,7 +345,6 @@ namespace CommunicationChannel
             }
         }
 
-
         /// <summary>
         /// Read incoming data packet
         /// </summary>
