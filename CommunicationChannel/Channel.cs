@@ -70,8 +70,6 @@ namespace CommunicationChannel
         /// </summary>
         public DateTime LastCommunication => LastIN > LastOUT ? LastIN : LastOUT;
 
-
-
         internal readonly Tuple<ulong, Func<byte[], byte[]>> LicenseActivator;
         private static readonly List<Channel> Channels = new List<Channel>();
         internal readonly Func<bool> ContextIsReady = null;
