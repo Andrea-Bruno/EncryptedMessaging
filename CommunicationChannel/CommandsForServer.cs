@@ -58,10 +58,6 @@ namespace CommunicationChannel
         /// <param name="directlyWithoutSpooler"> if you want to send directly without spooler make it true else false </param>
         public void SendPostToServer(ulong chatId, byte[] dataToSend, bool directlyWithoutSpooler = false) => SendCommandToServer(Protocol.Command.SetNewpost, dataToSend, chatId, directlyWithoutSpooler: directlyWithoutSpooler);
 
-        //public static void Connect(ulong myId)
-        //{
-        //	Tcp.Connect(myId, ServerAddress);
-        //}
 
         /// <summary>
         /// Confirmation that data is recieved at the server side.

@@ -146,8 +146,9 @@ namespace CommunicationChannel
                             {
                                 if (command == Protocol.Command.ConnectionEstablished)
                                 {
+                                    Channel.LicenseExpired = true;
                                     Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + ": Unable to connect to router");
-                                    Console.WriteLine("Has the license expired? Or the router has no more licenses available and refuses the connection of new devices.");
+                                    Console.WriteLine("Has the license expired? Or the router has no more licenses available and refuses the connection of new devices.");                                        
 #if DEBUG
                                     Debugger.Break();
 #endif
@@ -209,6 +210,7 @@ namespace CommunicationChannel
         internal bool Logged;
         private void OnCennected()
         {
+            Channel.LicenseExpired = false;
             TryReconnection.Change(Timeout.Infinite, Timeout.Infinite); // Stop check if connection is lost
             ResumeAutoDisconnectTimer();
             BeginRead(Client);

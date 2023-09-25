@@ -154,14 +154,7 @@ namespace EncryptedMessaging
             Setting = new Setting(this);
             Repository = new Repository(this);
             ContactConverter = new ContactConverter(this);
-            //          My = new My(this, getFirebaseToken, getAppleDeviceToken);
-            //#if DEBUG_A
-            //            privateKeyOrPassphrase = privateKeyOrPassphrase ?? PassPhrase_A;
-            //#elif DEBUG_B
-            //            privateKeyOrPassphrase = privateKeyOrPassphrase ?? PassPhrase_B;
-            //#endif
-            //            if (!string.IsNullOrEmpty(privateKeyOrPassphrase))
-            //                My.SetPrivateKey(privateKeyOrPassphrase);
+
             Messaging = new Messaging(this, multipleChatModes);
 
             Contacts = new Contacts(this);
@@ -178,6 +171,8 @@ namespace EncryptedMessaging
             if (!IsDisposed)
                 ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
         }
+
+        public bool LicenseExpired { get { return Channel != null && Channel.LicenseExpired; } }
 
         /// <summary>
         /// A temporary key and value registry made available to the host to temporarily store values

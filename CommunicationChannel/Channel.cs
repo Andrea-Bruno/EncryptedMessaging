@@ -42,6 +42,12 @@ namespace CommunicationChannel
                 Channels.Add(this);
             }
         }
+
+        /// <summary>
+        /// License expired (the router did not authorize the connection)
+        /// </summary>
+        public bool LicenseExpired { get; internal set; }
+
         /// <summary>
         /// When was the last data reception (Utc)
         /// </summary>

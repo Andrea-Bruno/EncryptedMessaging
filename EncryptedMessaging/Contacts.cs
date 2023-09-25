@@ -838,14 +838,10 @@ namespace EncryptedMessaging
         }
 
         private Contact _cloud;
-        //#if DEBUG
-        //static public string CloudPubKey = @"A4f7EZyD/lVQd5P4r0H3haPCdQJNOU/6sm7LsZoIT+XH";
-        //#else
 
         /// <summary>
         /// set unsigned integer value for cloud user id.
         /// </summary>
         public static ulong CloudUserId;
-        //#endif
     }
 }
