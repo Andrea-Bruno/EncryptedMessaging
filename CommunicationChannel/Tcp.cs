@@ -147,8 +147,9 @@ namespace CommunicationChannel
                                 if (command == Protocol.Command.ConnectionEstablished)
                                 {
                                     Channel.LicenseExpired = true;
-                                    Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + ": Unable to connect to router");
-                                    Console.WriteLine("Has the license expired? Or the router has no more licenses available and refuses the connection of new devices.");                                        
+                                    Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + " Unable to connect to router:");
+                                    Console.WriteLine("Has the license expired?"); 
+                                    Console.WriteLine("The router is offline");
 #if DEBUG
                                     Debugger.Break();
 #endif
@@ -194,17 +195,17 @@ namespace CommunicationChannel
                 if (!IsConnected() && InternetAccess)
                 {
                     StartLinger(5222, out var exception);
-                    if (exception == null)
+                    if (exception != null)
                     {
-                        OnCennected();
-                        KeepAliveRestart();
-                        return true;
+                        Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
+                        Disconnect();
+                        return false;
                     }
-                    Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
-                    Disconnect();
+                    OnCennected();
+                    KeepAliveRestart();
                 }
             }
-            return false;
+            return true;
         }
         private SemaphoreSlim OnConnectedSemaphore;
         internal bool Logged;
@@ -237,7 +238,6 @@ namespace CommunicationChannel
                 Client = new TcpClient
                 {
                     LingerState = new LingerOption(true, 0), // Close the connection immediately after the Close() method
-
                 };
                 var watch = Stopwatch.StartNew();
                 if (!Client.ConnectAsync(addresses, port).Wait(TimeOutMs)) // ms timeout
@@ -253,7 +253,12 @@ namespace CommunicationChannel
             }
             catch (Exception ex)
             {
-                if (ex.HResult == -2147467259)
+                if (ex is SocketException se)
+                {
+                    exception = new Exception("Socket exception: " +  se.SocketErrorCode.ToString());                
+                    Debugger.Break();
+                }
+                else if (ex.HResult == -2147467259)
                 {
                     exception = new Exception("Wrong entry point! There is no DNS/IP association with the specified entry point.");
                     Debugger.Break();
