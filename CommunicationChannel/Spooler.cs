@@ -123,7 +123,7 @@ namespace CommunicationChannel
 				Channel.Tcp.InvokeError(connectionIsLost ? ErrorType.LostConnection : ErrorType.SendDataError, ex.Message);
 			if (connectionIsLost)
 			{
-#if DEBUG
+#if DEBUG && !TEST
 				_sent.Remove(data);
 #endif
 				Queue.Insert(0, data);
@@ -143,7 +143,7 @@ namespace CommunicationChannel
 			Channel.OnDataDeliveryConfirm?.Invoke(dataId);
 			semaphore?.Release();
 		}
-#if DEBUG
+#if DEBUG && !TEST
 		private readonly List<byte[]> _sent = new List<byte[]>();
 #endif
 		internal void SendNext(bool pause = true)
@@ -155,7 +155,7 @@ namespace CommunicationChannel
 					var data = Queue[0];
 					Queue.RemoveAt(0);
 
-#if DEBUG
+#if DEBUG && !TEST
 					if (_sent.Contains(data))
                         System.Diagnostics.Debugger.Break(); // send duplicate message!!
 					_sent.Add(data);

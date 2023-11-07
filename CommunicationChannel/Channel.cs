@@ -165,8 +165,8 @@ namespace CommunicationChannel
                 System.Threading.Tasks.Task.Run(() =>
                 {
 
-                //    new Thread(() =>
-                //{
+                    //    new Thread(() =>
+                    //{
 
                     lock (OnMessageArrives)
                     {
@@ -175,7 +175,9 @@ namespace CommunicationChannel
                             if (directlyWithoutSpooler == false && AntiDuplicate.AlreadyReceived(post))
                             {
                                 DuplicatePost++;
-                                Debugger.Break();
+#if DEBUG && !TEST
+                                    Debugger.Break();
+#endif
                             }
                             else
                             {
@@ -183,7 +185,7 @@ namespace CommunicationChannel
                             }
                         });
                     }
-                //}).Start();
+                    //}).Start();
 
                 });
             }

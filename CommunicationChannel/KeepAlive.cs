@@ -21,7 +21,7 @@ namespace CommunicationChannel
             {
                 Debug.WriteLine(ex.Message);
                 Channel.KeepAliveFailures++;
-#if DEBUG
+#if DEBUG && !TEST
                 switch (ex.HResult)
                 {
                     case -2146233079: // The server is pinging and may have dropped the connection because it is not responding during debugging. If the error is not the same, then it breaks on the next line
@@ -37,7 +37,9 @@ namespace CommunicationChannel
             }
             if (!IsConnected() || ConnectionIsDead())
             {
+#if DEBUG && !TEST
                 Debugger.Break();
+#endif
                 Disconnect();
             }
         }

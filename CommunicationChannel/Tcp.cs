@@ -75,10 +75,10 @@ namespace CommunicationChannel
         internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, bool directlyWithoutSpooler = false)
         {
             var dataLength = data.Length;
-            if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished)
+            if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished && data[0] != (byte)Protocol.Command.DataReceivedConfirmation)
             {
                 SpinWait.SpinUntil(() => Logged, 10000);
-#if DEBUG
+#if DEBUG && !TEST
                 if (!Logged)
                 {
                     Debug.WriteLine(Channel.ServerUri); // Current entry point
@@ -148,14 +148,13 @@ namespace CommunicationChannel
                                 {
                                     Channel.LicenseExpired = true;
                                     Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + " Unable to connect to router:");
-                                    Console.WriteLine("Has the license expired?"); 
+                                    Console.WriteLine("Has the license expired?");
                                     Console.WriteLine("The router is offline");
-#if DEBUG
-                                    Debugger.Break();
-#endif
                                 }
                                 // wait timed out
+#if DEBUG && !TEST
                                 Debugger.Break();
+#endif
                                 Channel.Spooler.OnSendCompleted(data, new Exception("time-out"), true);
                                 Disconnect();
                                 return;
@@ -248,30 +247,40 @@ namespace CommunicationChannel
                         exception = new Exception("Unable to connect to router: Probably firewall on router on port " + port + " or the router does not run");
                     else
                         exception = new Exception("Failed to connect");
+#if DEBUG && !TEST
                     Debugger.Break();
+#endif
                 }
             }
             catch (Exception ex)
             {
                 if (ex is SocketException se)
                 {
-                    exception = new Exception("Socket exception: " +  se.SocketErrorCode.ToString());                
+                    exception = new Exception("Socket exception: " + se.SocketErrorCode.ToString());
+#if DEBUG && !TEST
                     Debugger.Break();
+#endif
                 }
                 else if (ex.HResult == -2147467259)
                 {
                     exception = new Exception("Wrong entry point! There is no DNS/IP association with the specified entry point.");
+#if DEBUG && !TEST
                     Debugger.Break();
+#endif
                 }
                 else if (ex.HResult == -2146233088)
                 {
                     exception = new Exception("The router is off or unreachable");
+#if DEBUG && !TEST
                     Debugger.Break();
+#endif
                 }
                 else
                 {
                     exception = ex;
+#if DEBUG && !TEST
                     Debugger.Break();
+#endif
                 }
             }
         }
@@ -419,8 +428,8 @@ namespace CommunicationChannel
             Channel.OnDataReceives(data, directlyWithoutSpooler, out var error, out var _);
             if (error != null)
             {
-#if DEBUG
-                Debugger.Break(); //something went wrong!
+#if DEBUG && !TEST
+                Debugger.Break();
 #endif
                 Channel.OnTcpError(error.Item1, error.Item2);
                 Disconnect();

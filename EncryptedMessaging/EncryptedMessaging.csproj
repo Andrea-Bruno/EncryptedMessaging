@@ -7,7 +7,7 @@
 		<UpgradeBackupLocation>
 		</UpgradeBackupLocation>
 		<OldToolsVersion>2.0</OldToolsVersion>
-		<Configurations>DEBUG_A;DEBUG_B;Debug;DEBUG_ALI;DEBUG_MUS;DEBUG_FAI;DEBUG_ZUB;DEBUG_AND;DEBUG_RAM;rDebug;Release;DEBUG_RAM_SOCIAL</Configurations>
+		<Configurations>Debug;Release</Configurations>
 		<NeutralLanguage>en</NeutralLanguage>
 		<DebugType>portable</DebugType>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
@@ -16,48 +16,10 @@
 		<PackageProjectUrl>https://www.nuget.org/packages/EncryptedMessaging/</PackageProjectUrl>
 		<PackageTags>Messaging engine, encrypted messaging software, signal type engine, telegram, whatsapp, bitcoin. cryptography, tcp, socket, chat</PackageTags>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_A|AnyCPU'">
-		<DebugType></DebugType>
-		<DefineConstants>DEBUG;DEBUG_A;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_B|AnyCPU'">
-		<DefineConstants>DEBUG;DEBUG_B</DefineConstants>
-	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
 		<Optimize>false</Optimize>
 		<WarningLevel>0</WarningLevel>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_ALI|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_MUS|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_FAI|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_ZUB|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_AND|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_RAM_SOCIAL|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DEBUG_RAM|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='rDebug|AnyCPU'">
-		<DefineConstants>DEBUG;TRACE</DefineConstants>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
 		<DebugSymbols>false</DebugSymbols>
