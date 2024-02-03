@@ -155,7 +155,7 @@ namespace CommunicationChannel
 #if DEBUG && !TEST
                                 Debugger.Break();
 #endif
-                                Channel.Spooler.OnSendCompleted(data, new Exception("time-out"), true);
+                                Channel.Spooler.OnSendCompleted(data, new Exception("Confirmation time-out"), true);
                                 Disconnect();
                                 return;
                             }
@@ -321,7 +321,7 @@ namespace CommunicationChannel
                 try { bytesRead = stream.EndRead(result); }
                 catch (Exception ex)
                 {
-                    if (ex.Message.StartsWith("Cannot access a disposed object"))
+                    if (ex.HResult == -2146232798)
                         Channel.OnTcpError(ErrorType.ConnectionClosed, "The timer has closed the connection");
                     else
                         Channel.OnTcpError(ErrorType.LostConnection, ex.Message);
