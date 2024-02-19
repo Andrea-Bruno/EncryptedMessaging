@@ -782,6 +782,8 @@ namespace EncryptedMessaging
             var rnd = ParticipantsToRandom(userIds);
             var darkOk = false;
             var lightOk = false;
+            light = default;
+            dark = default;
             do
             {
                 if (!darkOk)

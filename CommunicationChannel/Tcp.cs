@@ -63,7 +63,7 @@ namespace CommunicationChannel
             Channel.Spooler.AddToQuee(data);
         }
         // private const int TimeOutMs = 10000; // Default value
-        private const int TimeOutMs = TimerIntervalCheckConnection - 1000; // Experimental value: Some time cannot connet, I have encrease this value
+        private const int TimeOutMs = TimerIntervalCheckConnection - 1000; // Experimental value: Some time cannot connect, I have encrease this value
         private const double LimitMbps = 0.01;
         internal SemaphoreSlim WaitConfirmationSemaphore;
         /// <summary>
@@ -126,7 +126,7 @@ namespace CommunicationChannel
                             while (writed < data.Length)
                             {
                                 var toWrite = data.Length - writed;
-                                if (toWrite > 65536) // limit a block to 64k to show progress barr by event UpdateDownloadSpeed
+                                if (toWrite > 65536) // limit a block to 64k to show progress bar by event UpdateDownloadSpeed
                                     toWrite = 65536;
                                 stream.Write(data, writed, toWrite);
                                 writed += toWrite;
@@ -200,7 +200,7 @@ namespace CommunicationChannel
                         Disconnect();
                         return false;
                     }
-                    OnCennected();
+                    OnConnected();
                     KeepAliveRestart();
                 }
             }
@@ -208,7 +208,7 @@ namespace CommunicationChannel
         }
         private SemaphoreSlim OnConnectedSemaphore;
         internal bool Logged;
-        private void OnCennected()
+        private void OnConnected()
         {
             Channel.LicenseExpired = false;
             TryReconnection.Change(Timeout.Infinite, Timeout.Infinite); // Stop check if connection is lost
@@ -218,7 +218,7 @@ namespace CommunicationChannel
             {
                 Debug.WriteLine("Logged");
                 Logged = true;
-                OnConnectedSemaphore.Release();
+                OnConnectedSemaphore?.Release();
                 OnConnectedSemaphore = null;
                 Channel.ConnectionChange(true);
             };

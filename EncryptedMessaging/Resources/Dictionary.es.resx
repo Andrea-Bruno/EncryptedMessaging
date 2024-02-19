@@ -273,4 +273,7 @@
   <data name="EncryptedSharedContent" xml:space="preserve">
     <value>Contenido compartido cifrado</value>
   </data>
+  <data name="ScanQRCode" xml:space="preserve">
+    <value>Escanear código QR</value>
+  </data>
 </root>

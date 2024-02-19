@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
 		<Version>$([System.DateTime]::Now.ToString("1.yy.MM.dd"))</Version>
-		<Configurations>Debug;Release;Test</Configurations>
+		<Configurations>Debug;Test;Release</Configurations>
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 		<Description>TCP socket communication library with the server that has professional features such as maintenance of a spooler, verification of connection persistence, automatic restoration of the connection timed out, a ping system with the server, the ability to route messages to multiple recipients through a router. The library works perfectly on both server (iOS, Windows, Apple) and mobile (Android and iOS) platforms.</Description>
 		<Copyright>Andrea Bruno</Copyright>

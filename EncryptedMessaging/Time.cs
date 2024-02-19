@@ -58,6 +58,7 @@ namespace EncryptedMessaging
             if (deltas.Count < 3)
             {
                 dateTime = DateTime.UtcNow;
+                delta = default;
                 return false;
             }
             deltas.Sort();

@@ -439,6 +439,15 @@ namespace EncryptedMessaging.Resources {
         }
         
         /// <summary>
+        ///   Cerca una stringa localizzata simile a Scan QR code.
+        /// </summary>
+        public static string ScanQRCode {
+            get {
+                return ResourceManager.GetString("ScanQRCode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Cerca una stringa localizzata simile a Search.
         /// </summary>
         public static string Search {
