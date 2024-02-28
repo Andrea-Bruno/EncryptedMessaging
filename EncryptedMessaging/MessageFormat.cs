@@ -602,7 +602,7 @@ namespace EncryptedMessaging
         {
             //try
             //{
-            // Specifications of the telegraph data format (Version 0):
+            // Specifications of the Anonymous data format (Version 0):
             // byte 0 (version): Indicates the version of the technical specification, if this parameter changes everything in the data package it can follow other specifications
             // byte 0 bit n.8 (0b10000000): This bit indicates that the message is not encrypted 
             // byte 1,2,3,4 UNIX Timestamp

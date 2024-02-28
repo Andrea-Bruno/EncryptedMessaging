@@ -25,7 +25,7 @@
 	//					Add = "Aggiungi";
 	//					Remove = "Rimuovi";
 	//					Delete = "Cancella";
-	//					Info = "Telegraph white label - progetto open source - © BitBoxLab OU 2020";
+	//					Info = "Anonymous white label - progetto open source - © BitBoxLab OU 2020";
 	//					OpenSource = "Open Source";
 	//					EditPrivateKey = "Edita chiave privata";
 	//					TooManyParticipants = "Sono stati aggiunti troppi partecipanti ";
@@ -52,7 +52,7 @@
 	//					Add = "Add";
 	//					Remove = "Remove";
 	//					Delete = "Delete";
-	//					Info = "Telegraph white label - open source project - © BitBoxLab OU 2020";
+	//					Info = "Anonymous white label - open source project - © BitBoxLab OU 2020";
 	//					OpenSource = "Open Source";
 	//					EditPrivateKey = "Edit private key";
 	//					TooManyParticipants = "Too many participants have been added";

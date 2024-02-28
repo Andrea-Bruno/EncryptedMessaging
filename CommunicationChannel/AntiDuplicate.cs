@@ -22,8 +22,8 @@ namespace CommunicationChannel
 		private readonly string HashFile;
 		private void Load()
 		{
-			if (Channel.IsoStoreage.FileExists(HashFile))
-				using (var stream = new IsolatedStorageFileStream(HashFile, FileMode.Open, FileAccess.Read, Channel.IsoStoreage))
+			if (Channel.IsoStorage.FileExists(HashFile))
+				using (var stream = new IsolatedStorageFileStream(HashFile, FileMode.Open, FileAccess.Read, Channel.IsoStorage))
 					for (var i = 0; i < (int)stream.Length; i += 4)
 					{
 						var data = new byte[stream.Length];
@@ -64,7 +64,7 @@ namespace CommunicationChannel
 		private void Save()
 		{
 			lock (HashList)
-				using (var stream = new IsolatedStorageFileStream(HashFile, FileMode.Create, FileAccess.Write, Channel.IsoStoreage))
+				using (var stream = new IsolatedStorageFileStream(HashFile, FileMode.Create, FileAccess.Write, Channel.IsoStorage))
 				{
                     foreach (var item in HashList)
                         stream.Write(item, 0, 4);

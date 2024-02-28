@@ -29,28 +29,28 @@ namespace CommunicationChannel
 			var datas = new List<byte[]>();
 			lock (_inQuee)
 			{
-				if (_persistentQuee && IsoStoreage.FileExists(_queueListName))
+				if (_persistentQuee && IsoStorage.FileExists(_queueListName))
 				{
-					using (var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Open, FileAccess.Read, IsoStoreage))
+					using (var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Open, FileAccess.Read, IsoStorage))
 					{
 						while (stream.Position < stream.Length)
 						{
 							var dataInt = new byte[4];
 							stream.Read(dataInt, 0, 4);
 							var progressive = BitConverter.ToInt32(dataInt, 0);
-							if (IsoStoreage.FileExists(_queueName + progressive))
+							if (IsoStorage.FileExists(_queueName + progressive))
 							{
-								using (var stream2 = new IsolatedStorageFileStream(_queueName + progressive, FileMode.Open, FileAccess.Read, IsoStoreage))
+								using (var stream2 = new IsolatedStorageFileStream(_queueName + progressive, FileMode.Open, FileAccess.Read, IsoStorage))
 								{
 									var data = new byte[stream2.Length];
 									stream2.Read(data, 0, (int)stream2.Length);
 									datas.Add(data);
 								}
-                                IsoStoreage.DeleteFile(_queueName + progressive);
+                                IsoStorage.DeleteFile(_queueName + progressive);
 							}
 						}
 					}
-                    IsoStoreage.DeleteFile(_queueListName);
+                    IsoStorage.DeleteFile(_queueListName);
 				}
 			}
 			foreach (var data in datas)
@@ -72,7 +72,7 @@ namespace CommunicationChannel
 				lock (_inQuee)
 				{
 					_inQuee.Add(Tuple.Create(Utility.DataId(data), _progressive));
-					using (var stream = new IsolatedStorageFileStream(_queueName + _progressive, FileMode.Create, FileAccess.Write, IsoStoreage))
+					using (var stream = new IsolatedStorageFileStream(_queueName + _progressive, FileMode.Create, FileAccess.Write, IsoStorage))
 						stream.Write(data, 0, data.Length);
 					_progressive += 1;
 					SaveQueelist();
@@ -97,8 +97,8 @@ namespace CommunicationChannel
 					{
 						var progressive = toRemove.Item2;
 						_inQuee.Remove(toRemove);
-						if (IsoStoreage.FileExists(_queueName + progressive))
-                            IsoStoreage.DeleteFile(_queueName + progressive);
+						if (IsoStorage.FileExists(_queueName + progressive))
+                            IsoStorage.DeleteFile(_queueName + progressive);
 						SaveQueelist();
 					}
 				}
@@ -107,7 +107,7 @@ namespace CommunicationChannel
 
 		private void SaveQueelist()
 		{
-			using (var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Create, FileAccess.Write, IsoStoreage))
+			using (var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Create, FileAccess.Write, IsoStorage))
 				foreach (var item in _inQuee)
 					stream.Write(item.Item2.GetBytes(), 0, 4);
 		}

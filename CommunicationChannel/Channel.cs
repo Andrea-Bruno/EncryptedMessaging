@@ -79,7 +79,7 @@ namespace CommunicationChannel
         internal readonly Tuple<ulong, Func<byte[], byte[]>> LicenseActivator;
         private static readonly List<Channel> Channels = new List<Channel>();
         internal readonly Func<bool> ContextIsReady = null;
-        internal static readonly IsolatedStorageFile IsoStoreage = IsolatedStorageFile.GetStore(IsolatedStorageScope.User | IsolatedStorageScope.Assembly | IsolatedStorageScope.Domain, null, null);
+        internal static readonly IsolatedStorageFile IsoStorage = IsolatedStorageFile.GetStore(IsolatedStorageScope.User | IsolatedStorageScope.Assembly | IsolatedStorageScope.Domain, null, null);
         internal readonly AntiDuplicate AntiDuplicate;
         internal readonly int ConnectionTimeout = Timeout.Infinite;
         internal readonly ulong MyId;
