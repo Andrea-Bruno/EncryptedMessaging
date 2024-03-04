@@ -231,7 +231,7 @@ namespace EncryptedMessaging
         /// <param name="toIdUsers">Id of the members of the group the message is intended for. ToContact and toIdUsers cannot be set simultaneously</param>
         /// <param name="directlyWithoutSpooler">If this parameter is true, the data will be sent immediately without any reception check, if the recipient is not on-line they will be lost</param>
         /// <param name="encrypted">Clients are only able to receive encrypted messages. Non-encrypted messages are reserved for communications with cloud servers if the data is already encrypted and does not require a second encryption and if the message must be delivered to a server that does not have the client in the address book and therefore could not otherwise read it</param>
-        /// <param name="isLogin">Flad used only for the login command to avoid a recursive loop</param>
+        /// <param name="isLogin">Flag used only for the login command to avoid a recursive loop</param>
         public void SendMessage(MessageType type, byte[] data, Contact toContact, ulong? replyToPostId = null, ulong? chatId = null, ulong[] toIdUsers = null, bool directlyWithoutSpooler = false, bool encrypted = true, bool isLogin = false)
         {
             if (toIdUsers != null)
