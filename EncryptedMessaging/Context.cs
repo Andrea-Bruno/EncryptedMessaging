@@ -31,7 +31,7 @@ namespace EncryptedMessaging
         /// </summary>
         SaveContacts = 2,
         /// <summary>
-        /// Load contacts at startup: Indicates whether the contacts are to be loaded into the address book ad startup of application (pre load funzion tipical for client application).
+        /// Load contacts at startup: Indicates whether the contacts are to be loaded into the address book ad startup of application (pre load typical functions for client application).
         /// Whether at startup it should load the saved contacts (create the contacts directory), it is a typical mode for client systems which have an interface with the contacts book and are ready to communicate with them.
         /// </summary>
         LoadContacts = 4,
