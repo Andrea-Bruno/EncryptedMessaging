@@ -19,7 +19,7 @@ namespace EncryptedMessaging
     public class Contact : INotifyPropertyChanged
     {
         /// <summary>
-        /// Checks if the chat initiated is between a single user or multiple partipants/group. 
+        /// Checks if the chat initiated is between a single user or multiple participants/group. 
         /// </summary>
         /// <param name="context">Context</param>
         /// <param name="participants">Users in the contacts</param>
@@ -411,7 +411,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// 
         /// </summary>
-        public readonly bool SendConfirmationOfReading = true;
+        public  bool SendConfirmationOfReading { get; set; } = true;
 
         /// <summary>
         /// Indicates whether messages are required to be translated. If you change this parameter, you need to save the contact
@@ -443,7 +443,7 @@ namespace EncryptedMessaging
                 {
                     readed.DateTime = dateTime;
                     Context.OnLastReadedTimeChangeInvoke(this, readed.IdParticipant, readed.DateTime);
-                    if (IsVisible) // to save resource dont perform save operation when update last readed if contact arent visible
+                    if (IsVisible) // to save resource don't perform save operation when update last readed if contact arent visible
                         Save();
                 }
             }
@@ -549,7 +549,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Check if the last message was changed.
         /// </summary>
-        public event Contacts.LastMessagChanged LastMessageChanged;
+        public event Contacts.LastMessageChanged LastMessageChanged;
 
         /// <summary>
         /// Returns null if there are no messages in the chat
@@ -664,7 +664,7 @@ namespace EncryptedMessaging
         }
 
         /// <summary>
-        /// Set avator for the input byte array.
+        /// Set avatar for the input byte array.
         /// </summary>
         [XmlIgnore]
         public byte[] Avatar

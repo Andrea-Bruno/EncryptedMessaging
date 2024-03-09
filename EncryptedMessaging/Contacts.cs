@@ -40,7 +40,7 @@ namespace EncryptedMessaging
             private bool _suppressNotification;
 
             /// <summary>
-            /// Fucntion for change in the partipants in the group.
+            /// Function for change in the participants in the group.
             /// </summary>
             /// <param name="e"></param>
             protected override void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
@@ -50,7 +50,7 @@ namespace EncryptedMessaging
             }
 
             /// <summary>
-            /// Update the partipants list.
+            /// Update the participants list.
             /// </summary>
             /// <param name="list">list</param>
             public void Update(IEnumerable<T> list)
@@ -67,7 +67,7 @@ namespace EncryptedMessaging
         /// Server side rule for last message changed.
         /// </summary>
         /// <param name="message">string</param>
-        public delegate void LastMessagChanged(Message message);
+        public delegate void LastMessageChanged(Message message);
 
         /// <summary>
         /// Event action for contact list change.
@@ -98,10 +98,13 @@ namespace EncryptedMessaging
             Context.CloudManager?.LoadAllDataFromCloud("Contact"); // Cloud.SendCloudCommands.GetAllObject(Context, "Contact");            
         }
 
-        //public void ReadPosts() => ForEachContact(contact =>
-        //{
-        //    contact.ReadPosts();
-        //});
+        /// <summary>
+        /// Start reading all contact posts
+        /// </summary>
+        public void ReadPosts() => ForEachContact(contact =>
+        {
+            contact.ReadPosts();
+        });
 
         /// <summary>
         /// This feature sorts contacts by sharing what has more recent messages in chat
@@ -431,7 +434,7 @@ namespace EncryptedMessaging
         }
 
         /// <summary>
-        /// Add contact from the imput strng QR code.
+        /// Add contact from the input string QR code.
         /// </summary>
         /// <param name="qrCode">QR code </param>
         /// <param name="sendMyContact">Option to send my contact to the contact I add</param>
@@ -466,24 +469,24 @@ namespace EncryptedMessaging
         ///// <param name="modality">Is a server (It will not be visible in the contacts directory)</param>
         ///// <param name="sendMyContact">Option to send my contact to the contact I add</param>
         ///// <returns></returns>
-        //public Contact AddContact(string publicKeys, string name = null, Modality modality = Modality.Client, SendMyContact sendMyContact = SendMyContact.Send)
-        //{
-        //    if (!Context.ContactConverter.PublicKeysToParticipants(publicKeys, out List<byte[]> participants))
-        //        return null;
-        //    Contact duplicate = ContactAlreadyExists(participants, name);
-        //    if (duplicate != null)
-        //    {
-        //        if (duplicate.Name != name || duplicate.Modality != modality)
-        //        {
-        //            duplicate.Modality = modality;
-        //            duplicate.Name = name;
-        //        }
-        //        return duplicate; // Return a value but the contact already exists (is renamed if is necessary)
-        //    }
-        //    var newContact = new Contact(Context, participants, name, modality: modality);
-        //    AddContact(newContact, sendMyContact);
-        //    return newContact;
-        //}
+        public Contact AddContactByKeys(string publicKeys, string name = null, Modality modality = Modality.Client, SendMyContact sendMyContact = SendMyContact.Send)
+        {
+            if (!Context.ContactConverter.PublicKeysToParticipants(publicKeys, out List<byte[]> participants))
+                return null;
+            Contact duplicate = ContactAlreadyExists(participants, name);
+            if (duplicate != null)
+            {
+                if (duplicate.Name != name || duplicate.Modality != modality)
+                {
+                    duplicate.Modality = modality;
+                    duplicate.Name = name;
+                }
+                return duplicate; // Return a value but the contact already exists (is renamed if is necessary)
+            }
+            var newContact = new Contact(Context, participants, name, modality: modality);
+            AddContact(newContact, sendMyContact);
+            return newContact;
+        }
 
         /// <summary>
         /// Add a contact to the address book, if there is already a contact with the same key then the existing contact will be renamed

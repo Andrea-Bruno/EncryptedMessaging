@@ -7,17 +7,17 @@ namespace CommunicationChannel
     /// </summary>
     public class CommandsForServer
     {
-        internal CommandsForServer(Channel channell) => _channell = channell;
-        private readonly Channel _channell;
+        internal CommandsForServer(Channel Channel) => _Channel = Channel;
+        private readonly Channel _Channel;
         internal void SendCommandToServer(Protocol.Command command, byte[] dataToSend = null, ulong? chatId = null, ulong? myId = null, bool directlyWithoutSpooler = false)
         {
-            if (!_channell.Tcp.IsConnected())
-                _channell.Tcp.Connect();
+            if (!_Channel.Tcp.IsConnected())
+                _Channel.Tcp.Connect();
             var data = CreateCommand(command, dataToSend, chatId, myId);
             if (directlyWithoutSpooler)
-                _channell.Tcp.ExecuteSendData(data, directlyWithoutSpooler: directlyWithoutSpooler);  // Send directly without using the spooler
+                _Channel.Tcp.ExecuteSendData(data, directlyWithoutSpooler: directlyWithoutSpooler);  // Send directly without using the spooler
             else
-                _channell.Tcp.SendData(data);                                                         // Send data using the spooler
+                _Channel.Tcp.SendData(data);                                                         // Send data using the spooler
         }
 
         internal byte[] CreateCommand(Protocol.Command command, byte[] dataToSend = null, ulong? chatId = null, ulong? myId = null)
@@ -26,18 +26,18 @@ namespace CommunicationChannel
             if (myId != null)
             {
                 // ConnectionEstablished: command [0], domainId [1][2][3][4], senderId [5][6][7][8][9][10][11][12]
-                data = data.Combine(Converter.GetBytes(_channell.Domain)); // 4 byte
+                data = data.Combine(Converter.GetBytes(_Channel.Domain)); // 4 byte
                 var idArray = Converter.GetBytes((ulong)myId);
                 data = data.Combine(idArray); // 8 byte
-                if (_channell.LicenseActivator != null)
+                if (_Channel.LicenseActivator != null)
                 {
                     // login mode [13], OEM id [14][15][16][17][18][19][20][21], signature [22..]
                     data = data.Combine(new byte[] { 0 }); // Login mode (The version of login used (useful for future expansions))
-                    data = data.Combine(Converter.GetBytes(_channell.LicenseActivator.Item1)); // OEM license Id;
-                    if (_channell.LicenseActivator.Item2 != null)
+                    data = data.Combine(Converter.GetBytes(_Channel.LicenseActivator.Item1)); // OEM license Id;
+                    if (_Channel.LicenseActivator.Item2 != null)
                     {
                         Array.Resize(ref idArray, 32);
-                        var signature = _channell.LicenseActivator.Item2(idArray);
+                        var signature = _Channel.LicenseActivator.Item2(idArray);
                         data = data.Combine(signature);
                     }
                 }

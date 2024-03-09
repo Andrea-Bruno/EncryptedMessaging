@@ -6,7 +6,7 @@
     public class Setting
     {
         /// <summary>
-        /// Load the settigs of the chats.
+        /// Load the settings of the chats.
         /// </summary>
         /// <param name="context">Context</param>
         public Setting(Context context)

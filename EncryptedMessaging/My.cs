@@ -208,7 +208,7 @@ namespace EncryptedMessaging
                     _deviceToken = Context.SecureStorage.Values.Get("DeviceToken", null);
                 return _deviceToken;
             }
-            private set
+            set
             {
                 var lastValue = DeviceToken;
                 if (lastValue != value)

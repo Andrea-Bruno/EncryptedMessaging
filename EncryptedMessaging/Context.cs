@@ -163,7 +163,7 @@ namespace EncryptedMessaging
             if (licenseActivator != null)
                 license = new Tuple<ulong, Func<byte[], byte[]>>(licenseActivator.IdOEM, licenseActivator.SignLogin);
             // *1* // If you change this value, it must also be changed on the server	
-            Channel = new Channel(entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, license, ExecuteOnErrorChennal)
+            Channel = new Channel(entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, license, ExecuteOnErrorChannel)
             {
                 OnRouterConnectionChange = InvokeOnRouterConnectionChange
             };
@@ -198,7 +198,7 @@ namespace EncryptedMessaging
         /// </summary>
         public OnErrorEvent OnCommunicationErrorEvent; // { get => Channel.OnError; set => Channel.OnError = value; }
         
-        private void ExecuteOnErrorChennal(Channel.ErrorType errorType, string description )
+        private void ExecuteOnErrorChannel(Channel.ErrorType errorType, string description )
         {
             OnCommunicationErrorEvent?.Invoke(errorType, description);
         }
@@ -462,7 +462,11 @@ namespace EncryptedMessaging
         // Through this we can program an action that is triggered when a message arrives from a certain chat id
 
         internal readonly int NetworkId;
-        internal readonly Channel Channel;
+        [Obsolete("Do not use this object externally, its public access will be removed in the future!")]
+        /// <summary>
+        /// Provides access to the library instance for transporting data between devices and packet routing routers
+        /// </summary>
+        public readonly Channel Channel;
         /// <summary>
         /// The latest reception on the data channel (utc)
         /// </summary>

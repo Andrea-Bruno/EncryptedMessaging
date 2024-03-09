@@ -614,7 +614,7 @@ namespace EncryptedMessaging
         public void SendEndCall(byte[] call, Contact toContact) => SendMessage(MessageType.EndCall, call, toContact);
 
         /// <summary>
-        /// Decline a call from the recipent.
+        /// Decline a call from the recipient.
         /// </summary>
         /// <param name="call"></param>
         /// <param name="toContact"></param>
@@ -643,7 +643,7 @@ namespace EncryptedMessaging
         public void SendPdfDocument(byte[] document, Contact toContact, ulong? replyToPostId = null) => SendMessage(MessageType.PdfDocument, document, toContact, replyToPostId);
 
         /// <summary>
-        /// Send a contact card to the recipent 
+        /// Send a contact card to the recipient 
         /// </summary>
         /// <param name="phoneContact">Contact card</param>
         /// <param name="toContact"> The recipient</param>

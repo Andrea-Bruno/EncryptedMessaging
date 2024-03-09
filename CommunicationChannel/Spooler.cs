@@ -11,9 +11,9 @@ namespace CommunicationChannel
     /// </summary>
     internal class Spooler
 	{
-		internal Spooler(Channel channell)
+		internal Spooler(Channel Channel)
 		{
-			Channel = channell;
+			Channel = Channel;
 			_queueListName = "ql" + Channel.MyId;
 			_queueName = "q" + Channel.MyId + "-";
 			LoadUnsendedData();
@@ -65,7 +65,7 @@ namespace CommunicationChannel
 		/// <param name="data">byte array</param>
 		public void AddToQuee(byte[] data)
 		{
-			//_channell.Tcp.Connect();
+			//_Channel.Tcp.Connect();
 			Queue.Add(data);
 			if (_persistentQuee)
 			{
