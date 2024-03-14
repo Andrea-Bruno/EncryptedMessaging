@@ -11,25 +11,25 @@ namespace CommunicationChannel
     /// </summary>
     internal class Spooler
 	{
-		internal Spooler(Channel Channel)
+		internal Spooler(Channel channel)
 		{
-			Channel = Channel;
+			Channel = channel;
 			_queueListName = "ql" + Channel.MyId;
 			_queueName = "q" + Channel.MyId + "-";
-			LoadUnsendedData();
+			LoadNotTransmittedData();
 		}
 		private readonly Channel Channel;
 		private readonly string _queueListName;
 		private readonly string _queueName;
-		private const bool _persistentQuee = true;
+		private const bool _persistentQueue = true;
 
 
-		private void LoadUnsendedData()
+		private void LoadNotTransmittedData()
 		{
 			var datas = new List<byte[]>();
-			lock (_inQuee)
+			lock (_inQueue)
 			{
-				if (_persistentQuee && IsoStorage.FileExists(_queueListName))
+				if (_persistentQueue && IsoStorage.FileExists(_queueListName))
 				{
 					using (var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Open, FileAccess.Read, IsoStorage))
 					{
@@ -54,28 +54,28 @@ namespace CommunicationChannel
 				}
 			}
 			foreach (var data in datas)
-				AddToQuee(data);
+				AddToQueue(data);
 		}
 
 		private int _progressive;
-		private readonly List<Tuple<uint, int>> _inQuee = new List<Tuple<uint, int>>();  // Tuple<int, int> = Tuple<idData, progressive>
+		private readonly List<Tuple<uint, int>> _inQueue = new List<Tuple<uint, int>>();  // Tuple<int, int> = Tuple<idData, progressive>
 		/// <summary>
 		/// Add the data to the spooler Queue.
 		/// </summary>
 		/// <param name="data">byte array</param>
-		public void AddToQuee(byte[] data)
+		public void AddToQueue(byte[] data)
 		{
 			//_Channel.Tcp.Connect();
 			Queue.Add(data);
-			if (_persistentQuee)
+			if (_persistentQueue)
 			{
-				lock (_inQuee)
+				lock (_inQueue)
 				{
-					_inQuee.Add(Tuple.Create(Utility.DataId(data), _progressive));
+					_inQueue.Add(Tuple.Create(Utility.DataId(data), _progressive));
 					using (var stream = new IsolatedStorageFileStream(_queueName + _progressive, FileMode.Create, FileAccess.Write, IsoStorage))
 						stream.Write(data, 0, data.Length);
 					_progressive += 1;
-					SaveQueelist();
+					SaveQueueList();
 				}
 			}
 			if (Queue.Count == 1) //if the Queue is empty, the spooler is stopped, then re-enable the spooler
@@ -88,27 +88,27 @@ namespace CommunicationChannel
 		/// <param name="dataId"> Data id</param>
 		public void RemovePersistent(uint dataId)
 		{
-			if (_persistentQuee)
+			if (_persistentQueue)
 			{
-				lock (_inQuee)
+				lock (_inQueue)
 				{
-					var toRemove = _inQuee.Find(x => x.Item1 == dataId);
+					var toRemove = _inQueue.Find(x => x.Item1 == dataId);
 					if (toRemove != null)
 					{
 						var progressive = toRemove.Item2;
-						_inQuee.Remove(toRemove);
+						_inQueue.Remove(toRemove);
 						if (IsoStorage.FileExists(_queueName + progressive))
                             IsoStorage.DeleteFile(_queueName + progressive);
-						SaveQueelist();
+						SaveQueueList();
 					}
 				}
 			}
 		}
 
-		private void SaveQueelist()
+		private void SaveQueueList()
 		{
 			using (var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Create, FileAccess.Write, IsoStorage))
-				foreach (var item in _inQuee)
+				foreach (var item in _inQueue)
 					stream.Write(item.Item2.GetBytes(), 0, 4);
 		}
 		/// <summary>
@@ -166,7 +166,7 @@ namespace CommunicationChannel
 				}
 			}
 		}
-		internal int QueeCount => Queue.Count;
+		internal int QueueCount => Queue.Count;
 		internal readonly List<byte[]> Queue = new List<byte[]>();
 	}
 

@@ -60,7 +60,7 @@ namespace CommunicationChannel
         /// <param name="data">Data to be sent</param>
         public void SendData(byte[] data)
         {
-            Channel.Spooler.AddToQuee(data);
+            Channel.Spooler.AddToQueue(data);
         }
         // private const int TimeOutMs = 10000; // Default value
         private const int TimeOutMs = TimerIntervalCheckConnection - 1000; // Experimental value: Some time cannot connect, I have encrease this value

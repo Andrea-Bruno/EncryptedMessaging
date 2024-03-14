@@ -279,7 +279,7 @@ namespace CommunicationChannel
         /// <summary>
         /// Number of bytes in the queue
         /// </summary>
-        public int QueeCount => Spooler.QueeCount;
+        public int QueueCount => Spooler.QueueCount;
         /// <summary>
         /// 
         /// </summary>
