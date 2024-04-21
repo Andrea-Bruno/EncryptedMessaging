@@ -4,9 +4,9 @@ Our mission is to exacerbate the concept of security in messaging and create som
 
 * [Go to the Messaging Library API Documentation (EncryptedMessaging)](https://www.fuget.org/packages/EncryptedMessaging)
 
-This open source project on github is a tutorial for using and implementing this library in a real use case:
+This open source project on Github is a tutorial for using and implementing this library in a real use case:
 
-* [Powerful messaging software using this library](https://github.com/Andrea-Bruno/AnonymousMessenger)
+* [Powerful messaging software using this library](https://github.com/Andrea-Bruno/Anonymous) You can use this software as a tutorial to understand how to use it
 
 * [A robust cross-platform Cloud using this library as an underlying (Encrypted Clod)](https://github.com/Andrea-Bruno/CloudClient)
 
