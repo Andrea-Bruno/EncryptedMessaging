@@ -162,20 +162,21 @@ namespace EncryptedMessaging
         public static byte[] JoinData(bool lenAsByte, params byte[][] values)
         {
             var data = Array.Empty<byte>();
-            foreach (var value in values)
-            {
-                var v = value ?? Array.Empty<byte>();
+            if (values != null)
+                foreach (var value in values)
+                {
+                    var v = value ?? Array.Empty<byte>();
 #if DEBUG
-                if (lenAsByte && value.Length >= 256)
-                    Debugger.Break(); // It is not allowed to send data greater than 255 bytes
+                    if (lenAsByte && value.Length >= 256)
+                        Debugger.Break(); // It is not allowed to send data greater than 255 bytes
 #endif
-                data = lenAsByte ? data.Combine(new[] { (byte)v.Length }, v) : data.Combine(v.Length.GetBytes(), v);
-            }
+                    data = lenAsByte ? data.Combine(new[] { (byte)v.Length }, v) : data.Combine(v.Length.GetBytes(), v);
+                }
             return data;
         }
 
         /// <summary>
-        /// Vaidate the passphrase, if wrong return false.
+        /// Validate the passphrase, if wrong return false.
         /// </summary>
         /// <param name="passphrase"></param>
         /// <returns></returns>

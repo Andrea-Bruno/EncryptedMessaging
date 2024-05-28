@@ -45,7 +45,7 @@ namespace EncryptedMessaging
             {
                 Type = (MessageFormat.MessageType)data[0];
                 ReplyToPostId = BitConverter.ToUInt64(data, 1);
-                Data = data.Skip(9);
+                Data = global::Bytes.Skip(data, 9);
             }
             else
             {
@@ -436,7 +436,7 @@ namespace EncryptedMessaging
 				{
 #endif
                 var postId = Repository.PostId(dataPost);
-                var timestamp = BytesToInt(dataPost.Skip(1).Take(4));
+                var timestamp = BytesToInt(global::Bytes.Skip(dataPost, 1).Take(4));
                 var dateAndTime = FromUnixTimestamp(timestamp);
                 var type = (MessageType)dataPost[5];
                 var contact = _context.Contacts.GetContact(chatId);
@@ -469,12 +469,12 @@ namespace EncryptedMessaging
                 byte authorIndex;
                 if (!encrypted)
                 {
-                    authorIndex = dataPost.Skip(pointer).Take(1)[0];
+                    authorIndex = global::Bytes.Skip(dataPost, pointer).Take(1)[0];
                     pointer++;
                     authorId = idParticipants[authorIndex];
                     //author = participants[authorIndex];
                     var len = dataPost.Length - pointer;
-                    var data = dataPost.Skip(pointer).Take(len);
+                    var data = global::Bytes.Skip(dataPost, pointer).Take(len);
                     message = new Message(_context, contact, type, author, dateAndTime, data, receptionTime, postId, encrypted, chatId, authorId);
                     //if (MessageDescription.ContainsKey(message.Type))
                     //	contact.SetLastMessagePreview(message);
@@ -483,7 +483,7 @@ namespace EncryptedMessaging
                 if (DecryptPassword(dataPost, ref pointer, participants, idParticipants, out var password))
                 {
                     var len = dataPost.Length - pointer;
-                    var encryptedData = dataPost.Skip(pointer).Take(len);
+                    var encryptedData = global::Bytes.Skip(dataPost, pointer).Take(len);
                     var dataElement = Cryptography.Decrypt(encryptedData, password);
                     if (dataElement == null) return false;
                     int signatureLength;
@@ -501,9 +501,9 @@ namespace EncryptedMessaging
                     }
                     var data = dataElement.Take(dataLen);
                     var hashData = CryptoServiceProvider.ComputeHash(data);
-                    authorIndex = dataElement.Skip(dataLen).Take(1)[0];
+                    authorIndex = global::Bytes.Skip(dataElement, dataLen).Take(1)[0];
                     authorId = idParticipants[authorIndex];
-                    var signatureOfData = dataElement.Skip(dataLen + 1).Take(signatureLength);
+                    var signatureOfData = global::Bytes.Skip(dataElement, dataLen + 1).Take(signatureLength);
 
                     ContactMessage newContact = null;
                     if (type == MessageType.Contact && isNewPost)

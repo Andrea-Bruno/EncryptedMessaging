@@ -108,7 +108,7 @@ namespace CommunicationChannel
                             SuspendAutoDisconnectTimer();
                         // var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation && command != Protocol.Command.ConnectionEstablished;
                         var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation;
-                        var writed = 0;
+                        var written = 0;
                         var mbps = 0d;
                         try
                         {
@@ -123,17 +123,17 @@ namespace CommunicationChannel
                             stream.Write(((uint)dataLength | lastBit).GetBytes(), 0, 4);
                             var watch = Stopwatch.StartNew();
                             Channel.LastOUT = DateTime.UtcNow;
-                            while (writed < data.Length)
+                            while (written < data.Length)
                             {
-                                var toWrite = data.Length - writed;
+                                var toWrite = data.Length - written;
                                 if (toWrite > 65536) // limit a block to 64k to show progress bar by event UpdateDownloadSpeed
                                     toWrite = 65536;
-                                stream.Write(data, writed, toWrite);
-                                writed += toWrite;
-                                mbps = Math.Round((writed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
-                                UpdateDownloadSpeed?.Invoke(mbps, writed, data.Length);
+                                stream.Write(data, written, toWrite);
+                                written += toWrite;
+                                mbps = Math.Round((written / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
+                                UpdateDownloadSpeed?.Invoke(mbps, written, data.Length);
                                 Channel.LastOUT = DateTime.UtcNow;
-                                Debug.WriteLine("upload " + writed + "\\" + data.Length + " " + mbps + "mbps" + (writed == data.Length ? " completed" : ""));
+                                Debug.WriteLine("upload " + written + "\\" + data.Length + " " + mbps + "mbps" + (written == data.Length ? " completed" : ""));
                             }
                             stream.Flush();
                             //watch.Stop();
@@ -447,7 +447,7 @@ namespace CommunicationChannel
         private static int DataTimeout(int dataLength)
         {
             var mb = (double)dataLength / 1000000;
-            return 10000 + Convert.ToInt32(mb / LimitMbps);
+            return 15000 + Convert.ToInt32(mb / LimitMbps);
         }
 
         internal void InvokeError(ErrorType errorId, string description) => Channel.OnTcpError(errorId, description);

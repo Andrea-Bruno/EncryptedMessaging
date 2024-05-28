@@ -25,7 +25,7 @@ namespace EncryptedMessaging
 		}
 
 		/// <summary>
-		/// Combines the Byte wuth Byte array.
+		/// Combines the Byte with Byte array.
 		/// </summary>
 		/// <param name="me">Byte</param>
 		/// <param name="byteArray"> Byte array </param>
@@ -58,7 +58,7 @@ namespace EncryptedMessaging
 		/// <param name="offset">range</param>
 		/// <returns>Result</returns>
 
-		public static byte[] Skyp(this byte[] source, int offset)
+		public static byte[] Skip(this byte[] source, int offset)
 		{
 			var result = new byte[source.Length - offset];
 			Buffer.BlockCopy(source, offset, result, 0, result.Length);

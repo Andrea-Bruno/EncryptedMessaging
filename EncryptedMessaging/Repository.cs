@@ -348,9 +348,9 @@ namespace EncryptedMessaging
         {
             var p1 = dataPost.Length < 8
                                 ? BitConverter.ToUInt64(dataPost.Combine(new byte[8]).Take(8), 0)
-                                : BitConverter.ToUInt64(dataPost.Skip(dataPost.Length - 8), 0);
+                                : BitConverter.ToUInt64(global::Bytes.Skip(dataPost, dataPost.Length - 8), 0);
             var p2 = dataPost.Length < 8
-                                ? BitConverter.ToUInt64(new byte[8].Combine(dataPost).Skip(dataPost.Length).Reverse(), 0)
+                                ? BitConverter.ToUInt64(global::Bytes.Skip((new byte[8]).Combine(dataPost), dataPost.Length).Reverse(), 0)
                                 : BitConverter.ToUInt64(dataPost.Take(8).Reverse(), 0);
             return p1 ^ p2;
         }

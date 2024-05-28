@@ -228,7 +228,7 @@ namespace CommunicationChannel
         /// Delegate used to report errors on TCP communication
         /// </summary>
         /// <param name="errorId">Error type</param>
-        /// <param name="description">Error descrtiption</param>
+        /// <param name="description">Error description</param>
         public delegate void OnErrorEvent(ErrorType errorId, string description);
 
         /// <summary>

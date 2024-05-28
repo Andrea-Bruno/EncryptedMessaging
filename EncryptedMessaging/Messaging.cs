@@ -204,7 +204,7 @@ namespace EncryptedMessaging
             public MessageType Type;
             /// <summary>The body of the data in binary format</summary>
             public byte[] Data;
-            /// <summary>Recipient of the message. ToContact and toIdUsers cannot be set simultaneousl</summary>
+            /// <summary>Recipient of the message. ToContact and toIdUsers cannot be set simultaneously</summary>
             public Contact ToContact;
             /// <summary>The post Id property of the message you want to reply to</summary>
             public ulong? ReplyToPostId;
@@ -225,7 +225,7 @@ namespace EncryptedMessaging
         /// </summary>
         /// <param name="type">The type of data</param>
         /// <param name="data">The body of the data in binary format</param>
-        /// <param name="toContact">Recipient of the message. ToContact and toIdUsers cannot be set simultaneousl</param>
+        /// <param name="toContact">Recipient of the message. ToContact and toIdUsers cannot be set simultaneously</param>
         /// <param name="replyToPostId">The post Id property of the message you want to reply to</param>
         /// <param name="chatId">Set this value if toContact is null, that is, if the message is not encrypted. This value can be omitted if the toUserId parameter is present and you intend to send to a default group (without description, or chat between two contacts).</param>
         /// <param name="toIdUsers">Id of the members of the group the message is intended for. ToContact and toIdUsers cannot be set simultaneously</param>
@@ -284,6 +284,8 @@ namespace EncryptedMessaging
                 System.Diagnostics.Debugger.Break(); // It is recommended that you use reply to a message, only with messages that can be viewed in the chat
             if (@params.ToContact != null && @params.ToIdUsers != null)
                 System.Diagnostics.Debugger.Break(); // toContact and toIdUsers cannot be set simultaneously
+            if (@params.ToContact == null && @params.ToIdUsers == null)
+                System.Diagnostics.Debugger.Break(); // No message recipient has been defined
             if (@params.ToIdUsers != null && @params.Encrypted)
                 System.Diagnostics.Debugger.Break(); // It is not possible to use encryption if you do not have the contact
             if (Context.AfterInstanceThread == Thread.CurrentThread)
@@ -412,7 +414,7 @@ namespace EncryptedMessaging
         /// <param name="toIdUsers">The recipients</param>
         /// <param name="binaryData">Binary data block to send</param>
         /// <param name="directlyWithoutSpooler">If this parameter is true, the data will be sent immediately without any reception check, if the recipient is not on-line they will be lost</param>
-        public void SendBinaryUnencrypetd(ulong? chatId, ulong[] toIdUsers, byte[] binaryData, bool directlyWithoutSpooler = false) => SendMessage(MessageType.Binary, binaryData, null, null, chatId, toIdUsers, directlyWithoutSpooler, false);
+        public void SendBinaryUnencrypted(ulong? chatId, ulong[] toIdUsers, byte[] binaryData, bool directlyWithoutSpooler = false) => SendMessage(MessageType.Binary, binaryData, null, null, chatId, toIdUsers, directlyWithoutSpooler, false);
 
 
         /// <summary>
@@ -537,7 +539,7 @@ namespace EncryptedMessaging
         /// <param name="toContact">The recipient</param>
         /// <param name="directlyWithoutSpooler"></param>
         /// <param name="purposeIsUpdateOnly"></param>
-        /// <param name="isLogin">Flad used only for the login command to avoid a recursive loop</param>
+        /// <param name="isLogin">Flag used only for the login command to avoid a recursive loop</param>
         public void SendContact(Contact contact, Contact toContact, bool directlyWithoutSpooler = false, bool purposeIsUpdateOnly = false, bool isLogin = false)
         {
             var data = ContactMessage.GetDataMessageContact(contact, Context, purposeIsUpdateOnly: purposeIsUpdateOnly);
