@@ -4,11 +4,18 @@
 * Support of digital signature on packages, and security level in military standard.
 * This library, in terms of functionality and type of use, currently has no analogues.
 
-### Examples of use:
+### This library is suitable for:
 * Encrypted communication to create applications similar to Telegram or Signal but with greater attention to computer security and privacy.
 * Data transmission between device and cloud.
 * Acquisition of telemetry data produced by equipment.
 * Connecting the Internet of Things and wearable devices to the cloud.
+* Protecting IoT devices from unauthorized access and attacks.
+* Encrypting and protecting communications between IoT devices.
+* Virtualize groups of devices, which interact with each other in an encrypted and independent manner.
+* Making the communication network independent from static IPs
+* Access devices that are protected by a firewall
+* Assign digital identities to devices and accessories from the IoT
+* And much more...
 
 ## The library works correctly under all kinds of circumstances and data lines, and is ready for production scenarios,
 
@@ -16,7 +23,7 @@ Our mission is to exacerbate the concept of security in messaging and create som
 
 * [Go to the Messaging Library API Documentation (EncryptedMessaging)](https://www.fuget.org/packages/EncryptedMessaging)
 
-This open source project on github is a tutorial for using and implementing this library in a real use case:
+This open source project on GitHub is a tutorial for using and implementing this library in a real use case:
 
 * [Powerful messaging software using this library](https://github.com/Andrea-Bruno/AnonymousMessenger)
 
@@ -30,10 +37,10 @@ This project consists of three parts in the form of a library for security and f
 
 * [Communication channel](https://github.com/Andrea-Bruno/EncryptedMessaging/tree/master/CommunicationChannel) is the low-level socket communication protocol underlying encrypted communication.
 
-This project uses the Communication Channel project as its underlying, which creates a shcket communication channel for transmitting and receiving encrypted data upstream from the library.
+This project uses the Communication Channel project as its underlying, which creates a socket communication channel for transmitting and receiving encrypted data upstream from the library.
 Communication Channel underlies the encrypted messaging protocol, we have separated the two parts because the idea is to provide an universal communication protocol, which can work on any type of communication medium and hardware. Communication Channel creates a tcp socket communication channel, but this underlying one can be replaced with an analogous communication channel working with GSM data networks (without using the internet), or with rs232, rs485 ports, or any other communication devices either digital and analog. Just change the underlying encrypted communication protocol and we can easily implement encrypted communication on any type of device and in any scenario. If necessary, we can create implementations of new communication channels on different hardware, on commission.
 
-These libraries are also distributed as nuget packages:
+These libraries are also distributed as NuGet packages:
 
 * [Secure storage (Nuget)](https://www.nuget.org/packages/SecureStorage/)
 
