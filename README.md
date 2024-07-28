@@ -15,6 +15,7 @@
 * Making the communication network independent from static IPs
 * Access devices that are protected by a firewall
 * Assign digital identities to devices and accessories from the IoT
+* Encrypted router for 5G technology
 * And much more...
 
 ## The library works correctly under all kinds of circumstances and data lines, and is ready for production scenarios,
@@ -42,9 +43,9 @@ Communication Channel underlies the encrypted messaging protocol, we have separa
 
 These libraries are also distributed as NuGet packages:
 
-* [Secure storage (Nuget)](https://www.nuget.org/packages/SecureStorage/)
+* [Secure storage (NuGet)](https://www.nuget.org/packages/SecureStorage/)
 
-* [Encrypted messaging (Nuget)](https://www.nuget.org/packages/EncryptedMessaging/)
+* [Encrypted messaging (NuGet)](https://www.nuget.org/packages/EncryptedMessaging/)
 
-* [Communication channel (Nuget)](https://www.nuget.org/packages/CommunicationChannel/)
+* [Communication channel (NuGet)](https://www.nuget.org/packages/CommunicationChannel/)
 
