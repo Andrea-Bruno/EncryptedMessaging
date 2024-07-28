@@ -244,7 +244,7 @@ namespace EncryptedMessaging
             if (File.Exists(fileName))
             {
                 File.Delete(fileName);
-                SpinWait.SpinUntil(() => !File.Exists(fileName)); // The debug mode on the mobile platform we have seen that the cancellation of the end takes place asynchronously, we therefore wait for the file to be effectively deleted, in order not to have problems with UpdateLastMessagePreview()
+                SpinWait.SpinUntil(() => !File.Exists(fileName), 5000); // The debug mode on the mobile platform we have seen that the cancellation of the end takes place asynchronously, we therefore wait for the file to be effectively deleted, in order not to have problems with UpdateLastMessagePreview()
                 lock (ReceptionToPostId)
                 {
                     if (ReceptionToPostId.ContainsKey(receptionDateTime))

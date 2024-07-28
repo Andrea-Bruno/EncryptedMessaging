@@ -26,7 +26,7 @@ namespace CommunicationChannel
 
         // =================== This timer checks if the connection has been lost and reestablishes it ====================================
         internal readonly Timer TryReconnection;
-        private const int TimerIntervalCheckConnection = 10 * 1000;
+        private const int TimerIntervalCheckConnection = 20 * 1000;
         internal readonly object LockIsConnected = new object();
         private void OnTryReconnection(object o)
         {
@@ -63,9 +63,10 @@ namespace CommunicationChannel
             Channel.Spooler.AddToQueue(data);
         }
         // private const int TimeOutMs = 10000; // Default value
-        private const int TimeOutMs = TimerIntervalCheckConnection - 1000; // Experimental value: Some time cannot connect, I have encrease this value
+        private const int TimeOutMs = TimerIntervalCheckConnection - 1000; // Experimental value: Some time cannot connect, I have increase this value
         private const double LimitMbps = 0.01;
-        internal SemaphoreSlim WaitConfirmationSemaphore;
+        internal AutoResetEvent WaitConfirmationSemaphore = new AutoResetEvent(false);
+
         /// <summary>
         /// Send data to server (router) without going through the spooler
         /// </summary>
@@ -75,25 +76,31 @@ namespace CommunicationChannel
         internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, bool directlyWithoutSpooler = false)
         {
             var dataLength = data.Length;
-            if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished && data[0] != (byte)Protocol.Command.DataReceivedConfirmation)
+            // if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished && data[0] != (byte)Protocol.Command.DataReceivedConfirmation)
+            if (!Logged)
             {
-                SpinWait.SpinUntil(() => Logged, 10000);
-#if DEBUG && !TEST
-                if (!Logged)
+                var sendEvenWithoutLogin = dataLength > 0 && (data[0] == (byte)Protocol.Command.ConnectionEstablished || data[0] == (byte)Protocol.Command.DataReceivedConfirmation);
+                if (!sendEvenWithoutLogin)
                 {
-                    Debug.WriteLine(Channel.ServerUri); // Current entry point
-                    if (directlyWithoutSpooler)
-                        Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
-                    else
-                        Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
-                }
+                    // Wait for the login to complete
+                    OnLogged = new AutoResetEvent(false);
+                    if (!OnLogged.WaitOne(TimeOutMs))
+                    {
+#if DEBUG && !TEST
+                        // Login Timeout!
+                        Debug.WriteLine(Channel.ServerUri); // Current entry point
+                        if (directlyWithoutSpooler)
+                            Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
+                        else
+                            Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
 #endif
+                    }
+                }
             }
             Task.Run(() =>
             {
                 lock (this)
                 {
-
                     if (dataLength > MaxDataLength) { Channel.Spooler.OnSendCompleted(data, new Exception("Data length over the allowed limit"), false); return; }
 
                     if (!IsConnected())
@@ -115,7 +122,9 @@ namespace CommunicationChannel
                             var stream = Client.GetStream();
                             var mask = 0b10000000_00000000_00000000_00000000;
                             var lastBit = directlyWithoutSpooler ? mask : 0;
-                            WaitConfirmationSemaphore = waitConfirmation ? new SemaphoreSlim(0, 1) : null;
+                            if (waitConfirmation)
+                                WaitConfirmationSemaphore.Reset();
+                            //WaitConfirmationSemaphore = waitConfirmation ? new AutoResetEvent(false) : null;
                             //var mb = (double)dataLength / 1000000;
                             stream.WriteTimeout = DataTimeout(dataLength); // TimeOutMs + Convert.ToInt32(mb / LimitMbps);
                             Debug.WriteLine("start upload");
@@ -136,24 +145,18 @@ namespace CommunicationChannel
                                 Debug.WriteLine("upload " + written + "\\" + data.Length + " " + mbps + "mbps" + (written == data.Length ? " completed" : ""));
                             }
                             stream.Flush();
-                            //watch.Stop();
-                            //var elapsedMs = watch.ElapsedMilliseconds;
-                            //if (elapsedMs > 300)
-                            //{
-                            //    Debugger.Break();
-                            //}
-                            if (WaitConfirmationSemaphore != null && WaitConfirmationSemaphore.CurrentCount != 1 && !WaitConfirmationSemaphore.Wait(stream.WriteTimeout))
+                            if (waitConfirmation && !WaitConfirmationSemaphore.WaitOne(stream.WriteTimeout))
                             {
+                                // Timeout!
                                 if (command == Protocol.Command.ConnectionEstablished)
                                 {
                                     Channel.LicenseExpired = true;
                                     Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + " Unable to connect to router:");
                                     Console.WriteLine("Has the license expired?");
-                                    Console.WriteLine("The router is offline");
+                                    Console.WriteLine("The router is offline?");
                                 }
-                                // wait timed out
 #if DEBUG && !TEST
-                                Debugger.Break();
+                                Debugger.Break(); // Timeout! license expired or router offline
 #endif
                                 Channel.Spooler.OnSendCompleted(data, new Exception("Confirmation time-out"), true);
                                 Disconnect();
@@ -206,8 +209,19 @@ namespace CommunicationChannel
             }
             return true;
         }
-        private SemaphoreSlim OnConnectedSemaphore;
-        internal bool Logged;
+        private AutoResetEvent OnConnectedSemaphore;
+        private bool _Logged;
+        internal bool Logged
+        {
+            get { return _Logged; }
+            set
+            {
+                _Logged = value;
+                if (value)
+                    OnLogged?.Set();
+            }
+        }
+        private AutoResetEvent OnLogged;
         private void OnConnected()
         {
             Channel.LicenseExpired = false;
@@ -218,14 +232,14 @@ namespace CommunicationChannel
             {
                 Debug.WriteLine("Logged");
                 Logged = true;
-                OnConnectedSemaphore?.Release();
+                OnConnectedSemaphore?.Set();
                 OnConnectedSemaphore = null;
                 Channel.ConnectionChange(true);
             };
-            var data = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
-            OnConnectedSemaphore = new SemaphoreSlim(0, 1);
-            ExecuteSendData(data, startSpooler);
-            OnConnectedSemaphore?.Wait(TimeOutMs);
+            var login = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
+            OnConnectedSemaphore = new AutoResetEvent(false);
+            ExecuteSendData(login, startSpooler);
+            OnConnectedSemaphore?.WaitOne(TimeOutMs);
         }
 
         private void StartLinger(int port, out Exception exception)

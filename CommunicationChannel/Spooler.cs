@@ -137,11 +137,11 @@ namespace CommunicationChannel
 		/// <param name="dataId"> data ID</param>
 		public void OnConfirmReceipt(uint dataId)
 		{
-			var semaphore = Channel.Tcp.WaitConfirmationSemaphore;
+			// var semaphore = Channel.Tcp.WaitConfirmationSemaphore;
 			// Channel.Tcp.WaitConfirmationSemaphore = null;
 			RemovePersistent(dataId);
 			Channel.OnDataDeliveryConfirm?.Invoke(dataId);
-			semaphore?.Release();
+            Channel.Tcp.WaitConfirmationSemaphore.Set();
 		}
 #if DEBUG && !TEST
 		private readonly List<byte[]> _sent = new List<byte[]>();
