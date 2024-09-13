@@ -45,7 +45,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\..\BytesExtension\BytesExtension.csproj" />
+	  <PackageReference Include="BytesExtension" Version="1.24.9.13" />
 	</ItemGroup>
 
 	<ItemGroup>

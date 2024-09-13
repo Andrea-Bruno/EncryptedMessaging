@@ -39,7 +39,9 @@
 	  <None Remove="EncryptedMessaging.xml" />
 	</ItemGroup>
 	<ItemGroup>
-	  <ProjectReference Include="..\..\BytesExtension\BytesExtension.csproj" />
+	  <PackageReference Include="BytesExtension" Version="1.24.9.13" />
+	</ItemGroup>
+	<ItemGroup>
 	  <ProjectReference Include="..\..\SecureStorage\SecureStorage.csproj" />
 	  <ProjectReference Include="..\CommunicationChannel\CommunicationChannel.csproj" />
 	</ItemGroup>
