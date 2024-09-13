@@ -14,15 +14,15 @@ namespace CommunicationChannel
 	public static class Converter
 	{
 		/// <summary>
-		/// convert DateTime to unix timestamp
+		/// convert DateTime to Unix timestamp
 		/// </summary>
 		/// <param name="dateTime">DateTime</param>
-		/// <returns>unix timestamp</returns>
+		/// <returns>Unix timestamp</returns>
 		public static int ToUnixTimestamp(DateTime dateTime) => (int)dateTime.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
 		/// <summary>
-		/// convert unix timestamp to DateTime
+		/// convert Unix timestamp to DateTime
 		/// </summary>
-		/// <param name="timestamp">unix timestamp</param>
+		/// <param name="timestamp">Unix timestamp</param>
 		/// <returns>DateTime</returns>
 		public static DateTime FromUnixTimestamp(int timestamp) => new DateTime(1970, 1, 1).AddSeconds(timestamp);
 		///<inheritdoc cref="FromUnixTimestamp(int)"/>

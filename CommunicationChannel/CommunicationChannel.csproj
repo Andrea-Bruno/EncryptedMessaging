@@ -37,7 +37,15 @@
 	</Target>
 
 	<ItemGroup>
+	  <Compile Remove="Bytes.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <None Remove="CommunicationChannel.xml" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\BytesExtension\BytesExtension.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

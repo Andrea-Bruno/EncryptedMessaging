@@ -107,7 +107,7 @@ namespace EncryptedMessaging
                         }
                         if (!isViewable)
                             ExecuteCommand(chatId, message);
-                        UpdateReaded(message);
+                        UpdateReading(message);
                     }
                     else
                     {
@@ -163,7 +163,7 @@ namespace EncryptedMessaging
                         showMessage = ShowMessage;
                     showMessage(message, message.GetAuthor().SequenceEqual(Context.My.GetPublicKeyBinary()));
                 }
-                UpdateReaded(message);
+                UpdateReading(message);
             }
         }
 
@@ -181,7 +181,7 @@ namespace EncryptedMessaging
             Context.ViewMessageInvoke(message, isMy);
         }
 
-        private void UpdateReaded(Message message)
+        private void UpdateReading(Message message)
         {
             var isMy = message.GetAuthor().SequenceEqual(Context.My.GetPublicKeyBinary());
             var lastReading = DateTime.MinValue;
@@ -335,10 +335,18 @@ namespace EncryptedMessaging
             }
             Context.Channel.CommandsForRouter.SendPostToServer(@params.ToContact != null ? @params.ToContact.ChatId : (ulong)@params.ChatId, dataPost, @params.DirectlyWithoutSpooler);
         }
-
         private bool AlreadyTrySwitchOnConnectivity;
         //private bool AntiRecursive; // Avoid the recursive loop
 
+        /// <summary>
+        /// It is a special command to send data that will be interpreted directly by the router (the server to which the device connects, indicated by the entry point). The algorithm for interpreting these messages must be set on the router via the initialization command. Unlike all other messages, this is the only one that the router does not route to other devices connected to it or that can connect to it.
+        /// This method uses encryption to send data. If you want to send encrypted data you need to create a instance of this library on the router side and communicate with this instance.
+        /// </summary>
+        /// <param name="data">The data that is directed to the router. Their interpretation depends on the algorithm passed during router initialization. This data will not be encrypted. If you want to obfuscate the data, it should be encrypted before passing it to the function and decrypted at the router side upon receipt.</param>
+        public void SendRouterData(byte[] data)
+        {
+            Context.Channel.CommandsForRouter.SendRouterData(data);
+        }
 
         internal void DeleteMessage(ulong postId, Contact toContact)
         {

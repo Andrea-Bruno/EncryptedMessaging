@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using static CommunicationChannel.Channel;
+using static CommunicationChannel.CommandsForServer;
 
 namespace CommunicationChannel
 {
@@ -72,8 +73,8 @@ namespace CommunicationChannel
         /// </summary>
         /// <param name="data">Data to be sent</param>
         /// <param name="executeOnConfirmReceipt">Action to be taken when the router has successfully received the data sent</param>
-        /// <param name="directlyWithoutSpooler">If true, it indicates to the router (server) that it should not park the data if the receiver is not connected</param>
-        internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, bool directlyWithoutSpooler = false)
+        /// <param name="flag">Indicates some settings that the server/router will have to interpret</param>
+        internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, DataFlags flag = DataFlags.None)
         {
             var dataLength = data.Length;
             // if (IsConnected() && !Logged && dataLength > 0 && data[0] != (byte)Protocol.Command.ConnectionEstablished && data[0] != (byte)Protocol.Command.DataReceivedConfirmation)
@@ -89,7 +90,7 @@ namespace CommunicationChannel
 #if DEBUG && !TEST
                         // Login Timeout!
                         Debug.WriteLine(Channel.ServerUri); // Current entry point
-                        if (directlyWithoutSpooler)
+                        if (flag == DataFlags.DirectlyWithoutSpooler)
                             Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
                         else
                             Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
@@ -114,14 +115,14 @@ namespace CommunicationChannel
                         if (command != Protocol.Command.Ping)
                             SuspendAutoDisconnectTimer();
                         // var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation && command != Protocol.Command.ConnectionEstablished;
-                        var waitConfirmation = !directlyWithoutSpooler && command != Protocol.Command.DataReceivedConfirmation;
+                        var waitConfirmation = flag == DataFlags.None && command != Protocol.Command.DataReceivedConfirmation;
                         var written = 0;
                         var mbps = 0d;
                         try
                         {
                             var stream = Client.GetStream();
-                            var mask = 0b10000000_00000000_00000000_00000000;
-                            var lastBit = directlyWithoutSpooler ? mask : 0;
+                            var bit32 = flag == DataFlags.DirectlyWithoutSpooler ? 0b10000000_00000000_00000000_00000000 : 0;
+                            var bit31 = flag == DataFlags.RouterData ? 0b01000000_00000000_00000000_00000000 : 0;
                             if (waitConfirmation)
                                 WaitConfirmationSemaphore.Reset();
                             //WaitConfirmationSemaphore = waitConfirmation ? new AutoResetEvent(false) : null;
@@ -129,7 +130,7 @@ namespace CommunicationChannel
                             stream.WriteTimeout = DataTimeout(dataLength); // TimeOutMs + Convert.ToInt32(mb / LimitMbps);
                             Debug.WriteLine("start upload");
                             UpdateDownloadSpeed?.Invoke(0, 0, data.Length);
-                            stream.Write(((uint)dataLength | lastBit).GetBytes(), 0, 4);
+                            stream.Write(((uint)dataLength | bit32 | bit31).GetBytes(), 0, 4);
                             var watch = Stopwatch.StartNew();
                             Channel.LastOUT = DateTime.UtcNow;
                             while (written < data.Length)
@@ -352,7 +353,7 @@ namespace CommunicationChannel
                 else
                 {
                     var firstUint = BitConverter.ToUInt32(first4bytes, 0);
-                    var dataLength = (int)(0B01111111_11111111_11111111_11111111 & firstUint);
+                    var dataLength = (int)(0B00111111_11111111_11111111_11111111 & firstUint);
                     if (dataLength > MaxDataLength)
                     {
                         Channel.OnTcpError(ErrorType.WrongDataLength, "Data length over the allowed limit");
@@ -360,7 +361,13 @@ namespace CommunicationChannel
                         return;
                     }
                     var directlyWithoutSpooler = (firstUint & 0b10000000_00000000_00000000_00000000) != 0;
-                    ReadBytes(dataLength, stream, directlyWithoutSpooler);
+                    var routerData = (firstUint & 0b01000000_00000000_00000000_00000000) != 0;
+                    DataFlags flag = DataFlags.None;
+                    if (directlyWithoutSpooler)
+                        flag = DataFlags.DirectlyWithoutSpooler;
+                    else if (routerData)
+                        flag = DataFlags.RouterData;
+                    ReadBytes(dataLength, stream, flag);
                 }
             }
             try
@@ -380,8 +387,8 @@ namespace CommunicationChannel
         /// </summary>
         /// <param name="lengthIncomingData">Length of incoming packet</param>
         /// <param name="stream">Data stream for reading incoming data</param>
-        /// <param name="directlyWithoutSpooler">True if the data was sent without being parked in the spooler (in this case the data arrives at its destination only if the recipient device is connected to the router)</param>
-        private void ReadBytes(int lengthIncomingData, NetworkStream stream, bool directlyWithoutSpooler)
+        /// <param name="flag">Information on the type of data interpretation (for more information see the description of the items in the enumerator)</param>
+        private void ReadBytes(int lengthIncomingData, NetworkStream stream, DataFlags flag)
         {
             Protocol.Command command = default;
             byte[] data;
@@ -389,32 +396,32 @@ namespace CommunicationChannel
             {
                 // The server can send several messages in a single data packet
                 data = new byte[lengthIncomingData];
-                var readed = 0;
+                var readDataLen = 0;
                 Debug.WriteLine("Start download" + lengthIncomingData);
                 var watch = Stopwatch.StartNew();
                 var first = true;
                 int remaining;
                 var timeOutAt = DateTime.UtcNow.AddMilliseconds(DataTimeout(lengthIncomingData));
-                while (readed < lengthIncomingData)
+                while (readDataLen < lengthIncomingData)
                 {
                     int partialLength; // the reading is broken into smaller pieces in order to have an efficient control over the timeout that indicates the interruption of the data flow
                     if (first == true)
                         partialLength = 1; // In the first reading it reads only the first bit in order to immediately check if the packet is valid (the first bit must contain a valid command)
                     else
                     {
-                        partialLength = lengthIncomingData - readed;
+                        partialLength = lengthIncomingData - readDataLen;
                         if (partialLength > 65536)
                             partialLength = 65536;
                     }
-                    remaining = lengthIncomingData - readed;
+                    remaining = lengthIncomingData - readDataLen;
                     if (partialLength > remaining)
                         partialLength = remaining;
                     stream.ReadTimeout = DataTimeout(partialLength);
-                    readed += stream.Read(data, readed, partialLength);
-                    var mbps = Math.Round((readed / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
-                    UpdateDownloadSpeed?.Invoke(mbps, readed, lengthIncomingData);
-                    Debug.WriteLine("download " + readed + "\\" + lengthIncomingData + " " + mbps + "mbps" + (readed == lengthIncomingData ? " completed" : ""));
-                    if (first == true && readed > 0) // validates the data packet by checking the first byte that must contain a valid command
+                    readDataLen += stream.Read(data, readDataLen, partialLength);
+                    var mbps = Math.Round((readDataLen / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
+                    UpdateDownloadSpeed?.Invoke(mbps, readDataLen, lengthIncomingData);
+                    Debug.WriteLine("download " + readDataLen + "\\" + lengthIncomingData + " " + mbps + "mbps" + (readDataLen == lengthIncomingData ? " completed" : ""));
+                    if (first == true && readDataLen > 0) // validates the data packet by checking the first byte that must contain a valid command
                     {
                         first = false;
                         if (!Enum.IsDefined(typeof(Protocol.Command), data[0]))
@@ -439,7 +446,7 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
-            Channel.OnDataReceives(data, directlyWithoutSpooler, out var error, out var _);
+            Channel.OnDataReceives(data, flag, out var error, out var _);
             if (error != null)
             {
 #if DEBUG && !TEST

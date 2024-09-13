@@ -172,6 +172,9 @@ namespace EncryptedMessaging
                 ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
         }
 
+
+        public Action<byte[]> OnDataRouter { set { Channel.OnDataRouter = value; } }
+
         public bool LicenseExpired { get { return Channel != null && Channel.LicenseExpired; } }
 
         /// <summary>
@@ -197,8 +200,8 @@ namespace EncryptedMessaging
         /// Communication event manager. Set up an action for this handler to get feedback on communication errors
         /// </summary>
         public OnErrorEvent OnCommunicationErrorEvent; // { get => Channel.OnError; set => Channel.OnError = value; }
-        
-        private void ExecuteOnErrorChannel(Channel.ErrorType errorType, string description )
+
+        private void ExecuteOnErrorChannel(Channel.ErrorType errorType, string description)
         {
             OnCommunicationErrorEvent?.Invoke(errorType, description);
         }

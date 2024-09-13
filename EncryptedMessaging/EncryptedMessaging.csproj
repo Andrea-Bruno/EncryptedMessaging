@@ -31,6 +31,7 @@
 		<None Remove="Properties\**" />
 	</ItemGroup>
 	<ItemGroup>
+		<Compile Remove="Bytes.cs" />
 		<Compile Remove="Cloud.cs" />
 		<Compile Remove="ProcessResponsesFromCloud.cs" />
 	</ItemGroup>
@@ -38,6 +39,7 @@
 	  <None Remove="EncryptedMessaging.xml" />
 	</ItemGroup>
 	<ItemGroup>
+	  <ProjectReference Include="..\..\BytesExtension\BytesExtension.csproj" />
 	  <ProjectReference Include="..\..\SecureStorage\SecureStorage.csproj" />
 	  <ProjectReference Include="..\CommunicationChannel\CommunicationChannel.csproj" />
 	</ItemGroup>

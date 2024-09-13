@@ -15,7 +15,7 @@
 			/// </summary>
 			ConnectionEstablished = 0,
 			/// <summary>
-			/// 1 represents that data is recieved by server
+			/// 1 represents that data is received by server
 			/// </summary>
 			DataReceivedConfirmation = 1,
 			/// <summary>
@@ -23,9 +23,9 @@
 			/// </summary>
 			Ping = 2,
             /// <summary>
-            /// 3 send the router a message for another client
+            /// 3 send the router a message for another client, or a data packet to the router if indicated by the appropriate flags
             /// </summary>
-            SetNewpost = 3,
+            SetNewPost = 3,
             /// <summary>
             /// 4 represents messages of another client arriving from the router
             /// </summary>
