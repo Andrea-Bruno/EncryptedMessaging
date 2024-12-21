@@ -115,12 +115,9 @@ namespace CommunicationChannel
 		/// On send completed it remove the sent packet and insert in the spooler queue before closing the communication channnel.
 		/// </summary>
 		/// <param name="data">data</param>
-		/// <param name="ex">exception</param>
 		/// <param name="connectionIsLost">connection status</param>
-		public void OnSendCompleted(byte[] data, Exception ex, bool connectionIsLost)
+		public void OnSendCompleted(byte[] data, bool connectionIsLost)
 		{
-			if (ex != null)
-				Channel.Tcp.InvokeError(connectionIsLost ? ErrorType.LostConnection : ErrorType.SendDataError, ex.Message);
 			if (connectionIsLost)
 			{
 #if DEBUG && !TEST

@@ -309,7 +309,7 @@ namespace EncryptedMessaging
                 if (!AlreadyTrySwitchOnConnectivity)
                 {
                     AlreadyTrySwitchOnConnectivity = true;
-                    Functions.TrySwitchOnConnectivityByPing(Context.EntryPoint);
+                    Functions.TrySwitchOnConnectivity();
                 }
             }
             else
@@ -584,7 +584,7 @@ namespace EncryptedMessaging
         /// <param name="toContact">The recipient</param>
         internal void SendLastReading(Contact toContact)
         {
-            SendMessage(MessageType.LastReading, Converter.ToUnixTimestamp(Time.GetCurrentTimeGMT(out _)).GetBytes(), toContact);
+            SendMessage(MessageType.LastReading, Converter.ToUnixTimestamp(DateTime.UtcNow).GetBytes(), toContact);
         }
 
 #pragma warning disable 618

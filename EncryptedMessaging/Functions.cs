@@ -5,11 +5,15 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using EncryptedMessaging.Resources;
 using NBitcoin;
+using System.Runtime.InteropServices;
+using System.Net.Http;
 
 namespace EncryptedMessaging
 {
@@ -18,6 +22,113 @@ namespace EncryptedMessaging
     /// </summary>
     public static class Functions
     {
+        /// <summary>
+        /// Get if internet connection is active and working
+        /// </summary>
+        /// <returns>true or false</returns>
+        public static bool IsInternetAvailable()
+        {
+            // this version don't work in iOS (mobile)
+            byte[] addressBytes = { 1, 1, 1, 1 }; // Cloudflare
+            IPAddress[] ipsDns = { GetDnsAddress(), new IPAddress(addressBytes) };
+            using (Ping ping = new Ping())
+            {
+                foreach (IPAddress ipDns in ipsDns)
+                {
+                    if (ipDns != null)
+                    {
+                        try
+                        {
+                            PingReply reply = ping.Send(ipDns, 1000);
+                            if (reply.Status == IPStatus.Success)
+                                return true;
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                }
+            }
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                // Alternative Method for iOS
+                string[] domains = { "apple.com", "icloud.com" }; // Cloudflare
+                using (var client = new MyWebClient())
+                {
+                    foreach (var domain in domains)
+                    {
+                        try
+                        {
+                            using (client.OpenRead("http://" + domain))
+                                return true;
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool PingHost(Uri address)
+        {
+
+            try
+            {
+                using (var client = new MyWebClient())
+                using (client.OpenRead(address))
+                    return true;
+            }
+            catch
+            {
+                return false;
+            }
+
+            // this version don't work in iOS
+            //var pingable = false;
+            //Ping pinger = null;
+            //try
+            //{
+            //	pinger = new Ping();
+            //	PingReply reply = pinger.Send(nameOrAddress);
+            //	pingable = reply.Status == IPStatus.Success;
+            //}
+            //catch (PingException)
+            //{
+            //	// Discard PingExceptions and return false;
+            //}
+            //finally
+            //{
+            //	if (pinger != null)
+            //	{
+            //		pinger.Dispose();
+            //	}
+            //}
+            //return pingable;
+        }
+
+
+
+        /// <summary>
+        /// Get DNS Service IP
+        /// </summary>
+        /// <returns>IPAddress</returns>
+        public static IPAddress GetDnsAddress()
+        {
+            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus == OperationalStatus.Up)
+                {
+                    IPInterfaceProperties properties = ni.GetIPProperties();
+                    foreach (IPAddress dns in properties.DnsAddresses)
+                    {
+                        return dns;
+                    }
+                }
+            }
+            return null;
+        }
 
         /// <summary>
         /// encrypt the user input for the password.
@@ -78,7 +189,7 @@ namespace EncryptedMessaging
         {
             if (date == DateTime.MinValue)
                 return null;
-            var timeSpan = Time.GetCurrentTimeGMT(out _) - date;
+            var timeSpan = DateTime.UtcNow - date;
             return timeSpan.TotalDays >= 2 ? ((int)timeSpan.TotalDays).ToString(CultureInfo.InvariantCulture) + " " + Dictionary.Days + " " + Dictionary.Ago
                      : timeSpan.TotalDays >= 1 ? ((int)timeSpan.TotalDays).ToString(CultureInfo.InvariantCulture) + " " + Dictionary.Day + " " + Dictionary.Ago
                      : timeSpan.TotalHours >= 2 ? ((int)timeSpan.TotalHours).ToString(CultureInfo.InvariantCulture) + " " + Dictionary.Hours + " " + Dictionary.Ago
@@ -358,60 +469,24 @@ namespace EncryptedMessaging
             protected override WebRequest GetWebRequest(Uri uri)
             {
                 var w = base.GetWebRequest(uri);
-                w.Timeout = 5 * 1000;
+                w.Timeout = 2 * 1000;
                 return w;
             }
         }
 
-        private static bool PingHost(Uri address)
+
+        private static bool _disallowTrySwitchOnConnectivity;
+        internal static void TrySwitchOnConnectivity()
         {
-
-            try
+            if (Context.CurrentConnectivity == false && _disallowTrySwitchOnConnectivity == false)
             {
-                using (var client = new MyWebClient())
-                using (client.OpenRead(address))
-                    return true;
-            }
-            catch
-            {
-                return false;
-            }
-
-            // this version don't work in iOS
-            //var pingable = false;
-            //Ping pinger = null;
-            //try
-            //{
-            //	pinger = new Ping();
-            //	PingReply reply = pinger.Send(nameOrAddress);
-            //	pingable = reply.Status == IPStatus.Success;
-            //}
-            //catch (PingException)
-            //{
-            //	// Discard PingExceptions and return false;
-            //}
-            //finally
-            //{
-            //	if (pinger != null)
-            //	{
-            //		pinger.Dispose();
-            //	}
-            //}
-            //return pingable;
-        }
-
-        private static bool _pingDisallow;
-        internal static void TrySwitchOnConnectivityByPing(Uri serverUri)
-        {
-            if (Context.CurrentConnectivity == false && _pingDisallow == false)
-            {
-                if (PingHost(serverUri))
+                if (IsInternetAvailable())
                     Context.OnConnectivityChange(true);
                 else
-                    _pingDisallow = true;
+                    _disallowTrySwitchOnConnectivity = true;
             }
             if (Context.CurrentConnectivity == true)
-                _pingDisallow = false;
+                _disallowTrySwitchOnConnectivity = false;
         }
 
         internal static Guid CallerAssemblyId()

@@ -2,6 +2,7 @@
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<Version>$([System.DateTime]::Now.ToString("1.yy.MM.dd"))</Version>
 		<Configurations>Debug;Test;Release</Configurations>
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>

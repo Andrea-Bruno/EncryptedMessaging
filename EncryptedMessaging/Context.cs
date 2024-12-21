@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -395,29 +396,38 @@ namespace EncryptedMessaging
             if (connectivity)
             {
                 // Since the clock setting requires internet, this call also verifies if there really is an internet connection
-                Time.GetCurrentTimeGMT(out bool internetConnectionError);
-                if (internetConnectionError)
+                Time.GetCurrentTimeGMT(out bool? internetConnectionError);
+                if (internetConnectionError == false)
+                {
+                    connectivity = true;
+                }
+                else
+                {
+                    connectivity = Functions.IsInternetAvailable();
+                    if (connectivity == false)
+                    {
+                        lock (Contexts)
+                        {
+                            foreach (var context in Contexts)
+                            {
+                              context.OnCommunicationErrorEvent?.Invoke(ErrorType.ConnectionFailure , "No or unstable internet connection!");
+                            }
+                        }
+                    }
+                }
+                if (!connectivity)
                 {
                     // Automatically recheck the connection in one minute (reset the timer)
                     CheckConnectivity.Change(Timeout.Infinite, Timeout.Infinite);
                     CheckConnectivity.Change(60000, Timeout.Infinite);
                 }
-                connectivity = !internetConnectionError;
+
                 InstancedTimeUtc = DateTime.UtcNow;
             }
-            //if (connectivity)
-            //{
-            //    foreach (var context in Contexts)
-            //    {
-            //        if (context.IsInitialized)
-            //        {
-            //            context.Messaging.SendMessagesInQueue();
-            //        }
-            //    }
-            //}
             CurrentConnectivity = connectivity;
             Channel.InternetAccess = CurrentConnectivity == true;
         }
+
         /// <summary>
         /// Indicates when the object was instantiated
         /// </summary>
@@ -507,7 +517,7 @@ namespace EncryptedMessaging
         public static void ReEstablishConnection(bool iMSureThereIsConnection = false)
         {
             if (iMSureThereIsConnection)
-                Functions.TrySwitchOnConnectivityByPing(_lastEntryPoint);
+                Functions.TrySwitchOnConnectivity();
             Channel.ReEstablishConnection();
         }
 

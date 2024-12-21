@@ -20,31 +20,38 @@ namespace EncryptedMessaging
         /// Get current time & time based on system timezone.
         /// </summary>
         /// <returns>Current time & time, or null If there is no internet connection</returns>
-        public static DateTime GetCurrentTimeGMT(out bool internetConnectionError)
+        public static DateTime GetCurrentTimeGMT(out bool? internetConnectionError)
         {
+            bool detected;
             lock (Environment.OSVersion)
             {
                 if (!Detected)
                 {
-                    Detected = (GetAverageDateTimeFromWeb(out DateTime realDateAndTime, out Delta));
+                    Detected = GetAverageDateTimeFromWeb(out DateTime realDateAndTime, out Delta, out int providers);
+                    internetConnectionError = providers == 0;
                     if (Detected)
                     {
                         SystemIsUpToDate = UpdateSystemDate(realDateAndTime);
                     }
                 }
+                else
+                {
+                    detected = false;
+                    internetConnectionError = null;
+                }
             }
-            internetConnectionError = !Detected;
             return SystemIsUpToDate ? DateTime.UtcNow : Detected ? DateTime.UtcNow + Delta : DateTime.UtcNow;
         }
-        private static bool GetAverageDateTimeFromWeb(out DateTime dateTime, out TimeSpan delta)
+        private static bool GetAverageDateTimeFromWeb(out DateTime dateTime, out TimeSpan delta, out int providers)
         {
             var webs = new[] {
-                new Uri("http://108.59.14.4"), // timeanddate.com
-                new Uri("http://17.253.144.10"), // apple.com
-                new Uri("http://208.80.154.224"), // wikipedia.org
-                new Uri("http://3.13.31.214"), // linuxfoundation.org
-                new Uri("http://142.251.35.174"), // google.com
-                new Uri("http://20.112.52.29"), // microsoft.com
+                new Uri("http://archive.org"),
+                new Uri("http://apache.org"),
+                new Uri("http://opensource.org"),
+                new Uri("http://linuxfoundation.org"),
+                new Uri("http://mozilla.org"),
+                new Uri("http://gnu.org"),
+                new Uri("http://gnome.org"),
             };
 
             var deltas = new List<TimeSpan>();
@@ -55,7 +62,8 @@ namespace EncryptedMessaging
                     if (time != null)
                         deltas.Add(DateTime.UtcNow - (DateTime)time);
                 }
-            if (deltas.Count < 3)
+            providers = deltas.Count;
+            if (providers < 3)
             {
                 dateTime = DateTime.UtcNow;
                 delta = default;
@@ -87,11 +95,10 @@ namespace EncryptedMessaging
                 return null;
             }
         }
-        private const int TolleranceSec = 2;
-        private static bool UpdateSystemDate(DateTime newDateTimeUtc)
+        private static bool UpdateSystemDate(DateTime newDateTimeUtc, int toleranceSec = 2)
         {
             var currentDelta = Math.Abs((newDateTimeUtc - DateTime.UtcNow).TotalSeconds);
-            if (currentDelta < TolleranceSec) { return true; }
+            if (currentDelta < toleranceSec) { return true; }
             var newDateTime = newDateTimeUtc.ToLocalTime();
             try
             {
@@ -112,7 +119,7 @@ namespace EncryptedMessaging
                 Console.WriteLine("The system does not support updating the date and time, you probably need to run the administrator application!");
             }
             var sec = Math.Abs((newDateTimeUtc - DateTime.UtcNow).TotalSeconds);
-            return sec < TolleranceSec;
+            return sec < toleranceSec;
         }
     }
 }

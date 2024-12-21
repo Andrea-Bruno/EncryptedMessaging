@@ -614,7 +614,7 @@ namespace EncryptedMessaging
             var version = 1;
             if (!encrypted)
                 version |= 0b10000000; // This bit indicates that the message is not encrypted
-            var unixTimestamp = ToUnixTimestamp(Time.GetCurrentTimeGMT(out _));
+            var unixTimestamp = ToUnixTimestamp(DateTime.UtcNow);
             creationDate = FromUnixTimestamp(unixTimestamp);
             if (replyToPostId != null) //Replication messages have some additional information that is added to the beginning of the data (message type and the id of the post being replied to)
             {

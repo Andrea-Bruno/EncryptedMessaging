@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,7 +50,14 @@ namespace CommunicationChannel
         }
         private void ResumeAutoDisconnectTimer()
         {
-            TimerAutoDisconnect.Change(Channel.ConnectionTimeout, Timeout.Infinite);
+            try
+            {
+                TimerAutoDisconnect.Change(Channel.ConnectionTimeout, Timeout.Infinite);
+            }
+            catch (Exception)
+            {
+                // Disposed object (TimerAutoDisconnect is not available)
+            }
         }
         // ===============================================================================================================================
 
@@ -83,10 +92,12 @@ namespace CommunicationChannel
                 var sendEvenWithoutLogin = dataLength > 0 && (data[0] == (byte)Protocol.Command.ConnectionEstablished || data[0] == (byte)Protocol.Command.DataReceivedConfirmation);
                 if (!sendEvenWithoutLogin)
                 {
+                    Debugger.Break(); // Don't send any data before login is done!
+
                     // Wait for the login to complete
                     OnLogged = new AutoResetEvent(false);
                     if (!OnLogged.WaitOne(TimeOutMs))
-                    {
+                    {                      
 #if DEBUG && !TEST
                         // Login Timeout!
                         Debug.WriteLine(Channel.ServerUri); // Current entry point
@@ -95,6 +106,8 @@ namespace CommunicationChannel
                         else
                             Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
 #endif
+                        OnSendCompleted(data, flag, new Exception("Sending data without logging in!"), false);
+                        return;
                     }
                 }
             }
@@ -102,11 +115,11 @@ namespace CommunicationChannel
             {
                 lock (this)
                 {
-                    if (dataLength > MaxDataLength) { Channel.Spooler.OnSendCompleted(data, new Exception("Data length over the allowed limit"), false); return; }
+                    if (dataLength > MaxDataLength) { OnSendCompleted(data, flag, new Exception("Data length over the allowed limit"), false); return; }
 
                     if (!IsConnected())
                     {
-                        Channel.Spooler.OnSendCompleted(data, new Exception("Not connected"), true);
+                        OnSendCompleted(data, flag, new Exception("Not connected"), true);
                     }
                     else
                     {
@@ -159,15 +172,21 @@ namespace CommunicationChannel
 #if DEBUG && !TEST
                                 Debugger.Break(); // Timeout! license expired or router offline
 #endif
-                                Channel.Spooler.OnSendCompleted(data, new Exception("Confirmation time-out"), true);
+                                OnSendCompleted(data, flag, new Exception("Confirmation time-out"), true);
                                 Disconnect();
                                 return;
                             }
                             // confirmation received                              
                             if (waitConfirmation)
                             {
-                                executeOnConfirmReceipt?.Invoke();
-                                Channel.Spooler.OnSendCompleted(data, null, false);
+                                if (executeOnConfirmReceipt != null)
+                                {
+                                    new Thread(() =>
+                                    {
+                                        executeOnConfirmReceipt.Invoke();
+                                    }).Start();
+                                }
+                                OnSendCompleted(data, flag, null, false);
                             }
                             if (command != Protocol.Command.Ping)
                                 ResumeAutoDisconnectTimer();
@@ -177,13 +196,29 @@ namespace CommunicationChannel
                         catch (Exception ex)
                         {
                             //Debugger.Break();
-                            Channel.Spooler.OnSendCompleted(data, ex, true);
+                            OnSendCompleted(data, flag, ex, true);
                             Disconnect();
                         }
                     }
                 }
             });
         }
+
+
+        /// <summary>
+        /// On send completed it remove the sent packet and insert in the spooler queue before closing the communication channnel.
+        /// </summary>
+        /// <param name="data">data</param>
+        /// <param name="flag">Indicates some settings that the server/router will have to interpret</param>        /// <param name="ex">exception</param>
+        /// <param name="connectionIsLost">connection status</param>
+        private void OnSendCompleted(byte[] data, DataFlags flag, Exception ex, bool connectionIsLost)
+        {
+            if (ex != null)
+                Channel.Tcp.InvokeError(connectionIsLost ? ErrorType.LostConnection : ErrorType.SendDataError, ex.Message);
+            if (flag == DataFlags.None)
+                Channel.Spooler.OnSendCompleted(data, connectionIsLost);
+        }
+
 
         /// <summary>
         /// Establish the connection and start the spooler
@@ -210,7 +245,7 @@ namespace CommunicationChannel
             }
             return true;
         }
-        private AutoResetEvent OnConnectedSemaphore;
+        // private AutoResetEvent OnConnectedSemaphore;
         private bool _Logged;
         internal bool Logged
         {
@@ -229,18 +264,14 @@ namespace CommunicationChannel
             TryReconnection.Change(Timeout.Infinite, Timeout.Infinite); // Stop check if connection is lost
             ResumeAutoDisconnectTimer();
             BeginRead(Client);
-            void startSpooler()
+            void OnLogged()
             {
-                Debug.WriteLine("Logged");
+                Thread.Sleep(500);
                 Logged = true;
-                OnConnectedSemaphore?.Set();
-                OnConnectedSemaphore = null;
                 Channel.ConnectionChange(true);
             };
             var login = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
-            OnConnectedSemaphore = new AutoResetEvent(false);
-            ExecuteSendData(login, startSpooler);
-            OnConnectedSemaphore?.WaitOne(TimeOutMs);
+            ExecuteSendData(login, OnLogged);
         }
 
         private void StartLinger(int port, out Exception exception)
@@ -249,10 +280,26 @@ namespace CommunicationChannel
             try
             {
                 var addresses = Dns.GetHostAddresses(Channel.ServerUri.Host).Reverse().ToArray();
+
+                using (Ping ping = new Ping())
+                {
+                    PingReply reply = ping.Send(addresses[0], 5000);
+                    if (reply.Status != IPStatus.Success)
+                    {
+                        exception = new Exception("Ping result = " + reply.Status + " (The router is off or unreachable)");
+                        return;
+                    }
+                }
                 Client = new TcpClient
                 {
                     LingerState = new LingerOption(true, 0), // Close the connection immediately after the Close() method
                 };
+
+                // Client.ReceiveTimeout = 10000; // 10 secondi Client.SendTimeout = 10000; // 10 secondi
+                // Client.SendTimeout = 10000; // 10 secondi
+                // Client.NoDelay = false;
+
+
                 var watch = Stopwatch.StartNew();
                 if (!Client.ConnectAsync(addresses, port).Wait(TimeOutMs)) // ms timeout
                 {

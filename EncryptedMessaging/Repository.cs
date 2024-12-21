@@ -90,7 +90,7 @@ namespace EncryptedMessaging
                 var n = 0;
                 foreach (var file in filesList)
                 {
-                    if (n >= Context.Setting.KeepPost || (Time.GetCurrentTimeGMT(out _) - file.ReceptionDate >= TimeSpan.FromDays(Context.Setting.PostPersistenceDays)))
+                    if (n >= Context.Setting.KeepPost || (DateTime.UtcNow - file.ReceptionDate >= TimeSpan.FromDays(Context.Setting.PostPersistenceDays)))
                     {
                         File.Delete(file.FileName);
                         filesList.Remove(file);
