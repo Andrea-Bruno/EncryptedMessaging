@@ -124,7 +124,7 @@ namespace CommunicationChannel
 				_sent.Remove(data);
 #endif
 				Queue.Insert(0, data);
-				Channel.Tcp.Disconnect();
+				Channel.DataIO.Disconnect();
 			}
 		}
 		//internal List<Tuple<uint, Action>> ExecuteOnConfirmReceipt = new List<Tuple<uint, Action>>();
@@ -138,16 +138,16 @@ namespace CommunicationChannel
 			// Channel.Tcp.WaitConfirmationSemaphore = null;
 			RemovePersistent(dataId);
 			Channel.OnDataDeliveryConfirm?.Invoke(dataId);
-            Channel.Tcp.WaitConfirmationSemaphore.Set();
+            Channel.DataIO.WaitConfirmationSemaphore.Set();
 		}
 #if DEBUG && !TEST
 		private readonly List<byte[]> _sent = new List<byte[]>();
 #endif
 		internal void SendNext(bool pause = true)
 		{
-			if (Channel.Tcp.Logged)
+			if (Channel.DataIO.Logged)
 			{
-				if (Channel.Tcp.IsConnected() && Queue.Count > 0)
+				if (Channel.DataIO.IsConnected() && Queue.Count > 0)
 				{
 					var data = Queue[0];
 					Queue.RemoveAt(0);
@@ -159,7 +159,7 @@ namespace CommunicationChannel
 #endif
 					//if (pause)
 					//	Thread.Sleep(1000);
-					Channel.Tcp.ExecuteSendData(data);
+					Channel.DataIO.ExecuteSendData(data);
 				}
 			}
 		}

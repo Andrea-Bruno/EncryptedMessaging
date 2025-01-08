@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace CommunicationChannel
 {
-    internal partial class Tcp : IDisposable
+    internal partial class DataIO : IDisposable
     {
         internal readonly Timer TimerKeepAlive;
         internal readonly static TimeSpan KeepAliveInterval = TimeSpan.FromMinutes(5); // IMPORTANT: This value must be identical in the CommunicationChannel and RouterServer projects
@@ -59,5 +59,18 @@ namespace CommunicationChannel
 
         internal void KeepAliveRestart() => TimerKeepAlive.Change(KeepAliveInterval, KeepAliveInterval);
         internal void KeepAliveSuspend() => TimerKeepAlive.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+
+        private bool _disposed;
+        public void Dispose()
+        {
+            _disposed = true;
+            Disconnect();
+            TryReconnection?.Change(Timeout.Infinite, Timeout.Infinite);
+            TryReconnection?.Dispose();
+            TimerAutoDisconnect?.Change(Timeout.Infinite, Timeout.Infinite);
+            TimerAutoDisconnect?.Dispose();
+            TimerKeepAlive?.Change(Timeout.Infinite, Timeout.Infinite);
+            TimerKeepAlive?.Dispose();
+        }
     }
 }

@@ -11,13 +11,13 @@ namespace CommunicationChannel
         private readonly Channel _Channel;
         internal void SendCommandToServer(Protocol.Command command, byte[] dataToSend = null, ulong? chatId = null, ulong? myId = null, DataFlags dataFlags = DataFlags.None)
         {
-            if (!_Channel.Tcp.IsConnected())
-                _Channel.Tcp.Connect();
+            if (!_Channel.DataIO.IsConnected())
+                _Channel.DataIO.Connect();
             var data = CreateCommand(command, dataToSend, chatId, myId);
             if (dataFlags == DataFlags.DirectlyWithoutSpooler)
-                _Channel.Tcp.ExecuteSendData(data, flag: dataFlags);  // Send directly without using the spooler
+                _Channel.DataIO.ExecuteSendData(data, flag: dataFlags);  // Send directly without using the spooler
             else
-                _Channel.Tcp.SendData(data);                                                         // Send data using the spooler
+                _Channel.DataIO.SendData(data);                                                         // Send data using the spooler
         }
 
         /// <summary>
