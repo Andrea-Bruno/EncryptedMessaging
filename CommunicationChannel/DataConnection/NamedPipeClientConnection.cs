@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CommunicationChannel.DataConnection
 {
@@ -13,7 +16,7 @@ namespace CommunicationChannel.DataConnection
     /// </summary>
     public class NamedPipeClientConnection : IDataConnection
     {
-        private NamedPipeClientStream _pipeClient;
+        private FullDuplexStreamSupport.PipeStream _pipeClient;
 
         /// <summary>
         /// Establishes a connection to the specified named pipe.
@@ -26,20 +29,29 @@ namespace CommunicationChannel.DataConnection
         {
             lock (this)
             {
-                var pipeName = port + basePipeName + _nextPipeID;
+                if (!FullDuplexStreamSupport.PipeStream.IsInitialized)
+                {
+                    var pipeIn = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.In), PipeDirection.In);
+                    var pipeOut = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.Out), PipeDirection.Out);
+                    FullDuplexStreamSupport.PipeStream.Initialize(pipeIn, pipeOut);
+                }
+                _pipeClient = new FullDuplexStreamSupport.PipeStream(_nextPipeID);
 
-                _pipeClient = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
+
                 _pipeClient.Connect(timeOutMs);
                 if (_pipeClient.IsConnected)
                     _nextPipeID++;
-                //var bytesRead = _pipeClient.Read(new byte[4], 0, 4);
-                //if (!_pipeClient.IsConnected)
-                //    Debugger.Break();
+
+
+                if (!_pipeClient.IsConnected)
+                    Debugger.Break();
+
+
                 return _pipeClient.IsConnected;
             }
         }
 
-        static private long _nextPipeID;
+        static private uint _nextPipeID;
 
         /// <summary>
         /// Disconnects the current named pipe connection.
@@ -72,4 +84,5 @@ namespace CommunicationChannel.DataConnection
             Disconnect();
         }
     }
+
 }

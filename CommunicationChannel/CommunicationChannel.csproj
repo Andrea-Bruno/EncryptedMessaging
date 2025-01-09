@@ -50,6 +50,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\..\FullDuplexStreamSupport\FullDuplexStreamSupport.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <None Update="LICENSE.md">
 	    <Pack>True</Pack>
 	    <PackagePath>\</PackagePath>

@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using static CommunicationChannel.Channel;
 using static CommunicationChannel.CommandsForServer;
-using static System.Collections.Specialized.BitVector32;
 
 namespace CommunicationChannel
 {
@@ -82,6 +81,7 @@ namespace CommunicationChannel
                     }
                 }
             }
+
             Task.Run(() =>
             {
                 lock (this)
@@ -105,7 +105,7 @@ namespace CommunicationChannel
                         {
                             var stream = Client.GetStream();
                             uint bit32 = flag == DataFlags.DirectlyWithoutSpooler ? 0b10000000_00000000_00000000_00000000U : 0;
-                            uint bit31 = flag == DataFlags.RouterData             ? 0b01000000_00000000_00000000_00000000U : 0;
+                            uint bit31 = flag == DataFlags.RouterData ? 0b01000000_00000000_00000000_00000000U : 0;
                             if (waitConfirmation)
                                 WaitConfirmationSemaphore.Reset();
                             var timeoutMs = DataTimeout(dataLength);
@@ -114,8 +114,6 @@ namespace CommunicationChannel
                                 stream.WriteTimeout = timeoutMs;
                                 UpdateUploadSpeed?.Invoke(0, 0, data.Length);
                             }
-                            Debug.WriteLine("start upload");
-                            var x = (uint)dataLength | bit32 | bit31;
                             stream.Write(((uint)dataLength | bit32 | bit31).GetBytes(), 0, 4);
                             var watch = Stopwatch.StartNew();
                             Channel.LastOUT = DateTime.UtcNow;
@@ -175,6 +173,7 @@ namespace CommunicationChannel
                     }
                 }
             });
+
         }
 
         /// <summary>
@@ -235,7 +234,12 @@ namespace CommunicationChannel
             Channel.LicenseExpired = false;
             TryReconnection.Change(Timeout.Infinite, Timeout.Infinite); // Stop check if connection is lost
             ResumeAutoDisconnectTimer();
+
+            //            Client.GetStream().Write(new byte[] { 1, 2, 3, 4 }, 0, 4);
+
             BeginRead(Client);
+
+
             void OnLogged()
             {
                 Thread.Sleep(500);
@@ -243,6 +247,9 @@ namespace CommunicationChannel
                 Channel.ConnectionChange(true);
             };
             var login = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
+
+
+
             ExecuteSendData(login, OnLogged);
         }
 
@@ -333,9 +340,9 @@ namespace CommunicationChannel
         /// Start reading the stream by reading the first 4 bytes which contain the length of the data packet to read
         /// </summary>
         /// <param name="client"></param>
-        private async void BeginRead(IDataConnection client)
+        private void BeginRead(IDataConnection client)
         {
-            System.IO.Stream stream;
+            Stream stream;
             try
             {
                 if (client == null)
@@ -352,9 +359,20 @@ namespace CommunicationChannel
                 return;
             }
             var first4bytes = new byte[4];
-            try
+            void onReadLength(IAsyncResult result)
             {
-                var bytesRead = await stream.ReadAsync(first4bytes, 0, 4);
+                var bytesRead = 0;
+                try { bytesRead = stream.EndRead(result); }
+                catch (Exception ex)
+                {
+                    if (ex.HResult == -2146232798)
+                        Channel.OnTcpError(ErrorType.ConnectionClosed, "The timer has closed the connection");
+                    else
+                        Channel.OnTcpError(ErrorType.LostConnection, ex.Message);
+                    Debug.WriteLine(client.IsConnected.ToString());
+                    Disconnect();
+                    return;
+                }
                 if (bytesRead != 4)
                 {
                     Channel.OnTcpError(ErrorType.WrongDataLength, "BeginRead: bytesRead != 4");
@@ -381,6 +399,12 @@ namespace CommunicationChannel
                     ReadBytes(dataLength, stream, flag);
                 }
             }
+            try
+            {
+                if (stream.CanTimeout)
+                    stream.ReadTimeout = Timeout.Infinite;
+                stream.BeginRead(first4bytes, 0, 4, onReadLength, client);
+            }
             catch (Exception ex)
             {
                 Channel.OnTcpError(ErrorType.LostConnection, ex.Message);
@@ -394,7 +418,7 @@ namespace CommunicationChannel
         /// <param name="lengthIncomingData">Length of incoming packet</param>
         /// <param name="stream">Data stream for reading incoming data</param>
         /// <param name="flag">Information on the type of data interpretation (for more information see the description of the items in the enumerator)</param>
-        private async void ReadBytes(int lengthIncomingData, System.IO.Stream stream, DataFlags flag)
+        private void ReadBytes(int lengthIncomingData, Stream stream, DataFlags flag)
         {
             Protocol.Command command = default;
             byte[] data;
@@ -426,7 +450,7 @@ namespace CommunicationChannel
                         stream.ReadTimeout = DataTimeout(partialLength);
                         UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
                     }
-                    readDataLen += await stream.ReadAsync(data, readDataLen, partialLength);
+                    readDataLen += stream.Read(data, readDataLen, partialLength); //Avoid asynchronous method to overload the operation with asynchronous mode management
                     var mbps = Math.Round((readDataLen / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
                     if (stream.CanTimeout) // exclude pipe or similar
                         UpdateDownloadSpeed?.Invoke(mbps, readDataLen, lengthIncomingData);
