@@ -1,4 +1,6 @@
-﻿using System.Net.Sockets;
+﻿using System.IO;
+using System.Net.Sockets;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace CommunicationChannel.DataConnection
 {
@@ -41,20 +43,20 @@ namespace CommunicationChannel.DataConnection
         public bool IsConnected => _client?.Connected ?? false;
 
         /// <summary>
-        /// Gets the stream associated with the current TCP connection.
-        /// </summary>
-        /// <returns>The stream for the current TCP connection.</returns>
-        public System.IO.Stream GetStream()
-        {
-            return _client.GetStream();
-        }
-
-        /// <summary>
         /// Disposes the TCP connection, releasing all resources.
         /// </summary>
         public void Dispose()
         {
             Disconnect();
+        }
+
+        /// <summary>
+        /// Gets the stream associated with the current TCP connection.
+        /// </summary>
+        /// <returns>The stream for the current TCP connection.</returns>
+        public Stream GetStream()
+        {
+           return _client.GetStream();
         }
     }
 }

@@ -1,10 +1,12 @@
-﻿using System;
+﻿using FullDuplexStreamSupport;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Net.Sockets;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +18,7 @@ namespace CommunicationChannel.DataConnection
     /// </summary>
     public class NamedPipeClientConnection : IDataConnection
     {
-        private FullDuplexStreamSupport.PipeStream _pipeClient;
+        private FullDuplexStreamSupport.PipeStreamClient _pipeClient;
 
         /// <summary>
         /// Establishes a connection to the specified named pipe.
@@ -29,29 +31,24 @@ namespace CommunicationChannel.DataConnection
         {
             lock (this)
             {
-                if (!FullDuplexStreamSupport.PipeStream.IsInitialized)
+                if (PipeStream == null)
                 {
-                    var pipeIn = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.In), PipeDirection.In);
-                    var pipeOut = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.Out), PipeDirection.Out);
-                    FullDuplexStreamSupport.PipeStream.Initialize(pipeIn, pipeOut);
+                    PipeStream = new FullDuplexStreamSupport.PipeStream();
                 }
-                _pipeClient = new FullDuplexStreamSupport.PipeStream(_nextPipeID);
-
-
+                if (!PipeStream.IsInitialized)
+                {
+                    var pipeIn = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.Out), PipeDirection.In); // Stream Input must be connected with the server's output
+                    var pipeOut = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.In), PipeDirection.Out); // Stream Output must be connected with the server's input
+                    PipeStream.InitializeClient(pipeIn, pipeOut, timeOutMs);
+                }
+                _pipeClient = new FullDuplexStreamSupport.PipeStreamClient(PipeStream);
                 _pipeClient.Connect(timeOutMs);
-                if (_pipeClient.IsConnected)
-                    _nextPipeID++;
-
-
                 if (!_pipeClient.IsConnected)
                     Debugger.Break();
-
-
                 return _pipeClient.IsConnected;
             }
         }
-
-        static private uint _nextPipeID;
+        static private FullDuplexStreamSupport.PipeStream PipeStream;
 
         /// <summary>
         /// Disconnects the current named pipe connection.
@@ -68,20 +65,20 @@ namespace CommunicationChannel.DataConnection
         public bool IsConnected => _pipeClient?.IsConnected ?? false;
 
         /// <summary>
-        /// Gets the network stream associated with the current named pipe connection.
-        /// </summary>
-        /// <returns>The network stream for the current named pipe connection.</returns>
-        public Stream GetStream()
-        {
-            return _pipeClient;
-        }
-
-        /// <summary>
         /// Disposes the named pipe connection, releasing all resources.
         /// </summary>
         public void Dispose()
         {
             Disconnect();
+        }
+
+        /// <summary>
+        /// Gets the network stream associated with the current named pipe connection.
+        /// </summary>
+        /// <returns>The network stream for the current named pipe connection.</returns>
+        Stream IDataConnection.GetStream()
+        {
+            return new PipeStreamClientToStreamAdapter(_pipeClient);
         }
     }
 
