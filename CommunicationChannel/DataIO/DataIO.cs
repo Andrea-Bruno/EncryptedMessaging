@@ -109,6 +109,11 @@ namespace CommunicationChannel
                             if (waitConfirmation)
                                 WaitConfirmationSemaphore.Reset();
                             var timeoutMs = DataTimeout(dataLength);
+#if DEBUG && !TEST
+                            timeoutMs = Timeout.Infinite;
+#endif
+
+
                             if (stream.CanTimeout)
                             {
                                 stream.WriteTimeout = timeoutMs;

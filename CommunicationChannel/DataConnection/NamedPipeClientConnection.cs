@@ -1,15 +1,7 @@
 ﻿using FullDuplexStreamSupport;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
-using System.Linq;
-using System.Net.Sockets;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CommunicationChannel.DataConnection
 {
@@ -18,7 +10,7 @@ namespace CommunicationChannel.DataConnection
     /// </summary>
     public class NamedPipeClientConnection : IDataConnection
     {
-        private FullDuplexStreamSupport.PipeStreamClient _pipeClient;
+        private PipeStreamClient PipeStreamClient;
 
         /// <summary>
         /// Establishes a connection to the specified named pipe.
@@ -41,11 +33,12 @@ namespace CommunicationChannel.DataConnection
                     var pipeOut = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.In), PipeDirection.Out); // Stream Output must be connected with the server's input
                     PipeStream.InitializeClient(pipeIn, pipeOut, timeOutMs);
                 }
-                _pipeClient = new FullDuplexStreamSupport.PipeStreamClient(PipeStream);
-                _pipeClient.Connect(timeOutMs);
-                if (!_pipeClient.IsConnected)
+                PipeStreamClient = PipeStream.AddNewCLient();
+                // PipeStreamClient = new PipeStreamClient(PipeStream);
+                PipeStreamClient.Connect(timeOutMs);
+                if (!PipeStreamClient.IsConnected)
                     Debugger.Break();
-                return _pipeClient.IsConnected;
+                return PipeStreamClient.IsConnected;
             }
         }
         static private FullDuplexStreamSupport.PipeStream PipeStream;
@@ -55,14 +48,14 @@ namespace CommunicationChannel.DataConnection
         /// </summary>
         public void Disconnect()
         {
-            _pipeClient?.Close();
-            _pipeClient?.Dispose();
+            PipeStreamClient?.Close();
+            PipeStreamClient?.Dispose();
         }
 
         /// <summary>
         /// Gets a value indicating whether the named pipe connection is currently established.
         /// </summary>
-        public bool IsConnected => _pipeClient?.IsConnected ?? false;
+        public bool IsConnected => PipeStreamClient?.IsConnected ?? false;
 
         /// <summary>
         /// Disposes the named pipe connection, releasing all resources.
@@ -78,7 +71,7 @@ namespace CommunicationChannel.DataConnection
         /// <returns>The network stream for the current named pipe connection.</returns>
         Stream IDataConnection.GetStream()
         {
-            return new PipeStreamClientToStreamAdapter(_pipeClient);
+            return PipeStreamClient;
         }
     }
 
