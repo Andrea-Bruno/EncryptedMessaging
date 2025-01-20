@@ -25,6 +25,7 @@ namespace CommunicationChannel
             TimerAutoDisconnect = new Timer((o) => Disconnect(false));
             TimerKeepAlive = new Timer(OnTimerKeepAlive);
         }
+
         private void SetNewClient()
         {
             if (Channel.ServerUri.Scheme.ToLower() == "pipe")
@@ -32,9 +33,11 @@ namespace CommunicationChannel
             else
                 Client = new TcpClientConnection();
         }
+
         internal readonly Channel Channel;
         private const int MaxDataLength = 16000000; //16 MB - max data length enable to received the server
         internal IDataConnection Client;
+
         /// <summary>
         /// Send the data, which will be parked in the spooler, cannot be forwarded immediately: If there is a queue or if there is no internet line the data will be parked.
         /// </summary>
@@ -43,6 +46,7 @@ namespace CommunicationChannel
         {
             Channel.Spooler.AddToQueue(data);
         }
+
         // private const int TimeOutMs = 10000; // Default value
         private const int TimeOutMs = TimerIntervalCheckConnection - 1000; // Experimental value: Some time cannot connect, I have increase this value
         private const double LimitMbps = 0.01;
@@ -62,7 +66,8 @@ namespace CommunicationChannel
                 var sendEvenWithoutLogin = dataLength > 0 && (data[0] == (byte)Protocol.Command.ConnectionEstablished || data[0] == (byte)Protocol.Command.DataReceivedConfirmation);
                 if (!sendEvenWithoutLogin)
                 {
-                    Debugger.Break(); // Don't send any data before login is done!
+                    if (!flag.HasFlag(DataFlags.DirectlyWithoutSpooler))
+                        Debugger.Break(); // Don't send any data before login is done!
 
                     // Wait for the login to complete
                     OnLogged = new AutoResetEvent(false);
@@ -86,7 +91,11 @@ namespace CommunicationChannel
             {
                 lock (this)
                 {
-                    if (dataLength > MaxDataLength) { OnSendCompleted(data, flag, new Exception("Data length over the allowed limit"), false); return; }
+                    if (dataLength > MaxDataLength)
+                    {
+                        OnSendCompleted(data, flag, new Exception("Data length over the allowed limit"), false);
+                        return;
+                    }
 
                     if (!IsConnected())
                     {
@@ -119,6 +128,7 @@ namespace CommunicationChannel
                                 stream.WriteTimeout = timeoutMs;
                                 UpdateUploadSpeed?.Invoke(0, 0, data.Length);
                             }
+
                             stream.Write(((uint)dataLength | bit32 | bit31).GetBytes(), 0, 4);
                             var watch = Stopwatch.StartNew();
                             Channel.LastOUT = DateTime.UtcNow;
@@ -135,6 +145,7 @@ namespace CommunicationChannel
                                 Channel.LastOUT = DateTime.UtcNow;
                                 Debug.WriteLine("upload " + written + "\\" + data.Length + " " + mbps + "mbps" + (written == data.Length ? " completed" : ""));
                             }
+
                             stream.Flush();
                             if (waitConfirmation && !WaitConfirmationSemaphore.WaitOne(timeoutMs))
                             {
@@ -153,18 +164,18 @@ namespace CommunicationChannel
                                 Disconnect();
                                 return;
                             }
+
                             // confirmation received                              
                             if (waitConfirmation)
                             {
                                 if (executeOnConfirmReceipt != null)
                                 {
-                                    new Thread(() =>
-                                    {
-                                        executeOnConfirmReceipt.Invoke();
-                                    }).Start();
+                                    new Thread(() => { executeOnConfirmReceipt.Invoke(); }).Start();
                                 }
+
                                 OnSendCompleted(data, flag, null, false);
                             }
+
                             if (command != Protocol.Command.Ping)
                                 ResumeAutoDisconnectTimer();
                             if (Logged)
@@ -178,7 +189,6 @@ namespace CommunicationChannel
                     }
                 }
             });
-
         }
 
         /// <summary>
@@ -215,14 +225,17 @@ namespace CommunicationChannel
                         Disconnect();
                         return false;
                     }
+
                     OnConnected();
                     KeepAliveRestart();
                 }
             }
+
             return true;
         }
 
         private bool _Logged;
+
         internal bool Logged
         {
             get { return _Logged; }
@@ -233,7 +246,9 @@ namespace CommunicationChannel
                     OnLogged?.Set();
             }
         }
+
         private AutoResetEvent OnLogged;
+
         private void OnConnected()
         {
             Channel.LicenseExpired = false;
@@ -250,9 +265,10 @@ namespace CommunicationChannel
                 Thread.Sleep(500);
                 Logged = true;
                 Channel.ConnectionChange(true);
-            };
-            var login = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
+            }
 
+            ;
+            var login = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
 
 
             ExecuteSendData(login, OnLogged);
@@ -287,6 +303,7 @@ namespace CommunicationChannel
                     if (Channel.ServerUri.Host.Contains(":"))
                         port = Channel.ServerUri.Port;
                 }
+
                 SetNewClient();
 
                 var watch = Stopwatch.StartNew();
@@ -355,6 +372,7 @@ namespace CommunicationChannel
                     Disconnect();
                     return;
                 }
+
                 stream = client.GetStream();
             }
             catch (Exception ex)
@@ -363,11 +381,16 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
+
             var first4bytes = new byte[4];
+
             void onReadLength(IAsyncResult result)
             {
                 var bytesRead = 0;
-                try { bytesRead = stream.EndRead(result); }
+                try
+                {
+                    bytesRead = stream.EndRead(result);
+                }
                 catch (Exception ex)
                 {
                     if (ex.HResult == -2146232798)
@@ -378,6 +401,7 @@ namespace CommunicationChannel
                     Disconnect();
                     return;
                 }
+
                 if (bytesRead != 4)
                 {
                     Channel.OnTcpError(ErrorType.WrongDataLength, "BeginRead: bytesRead != 4");
@@ -394,6 +418,7 @@ namespace CommunicationChannel
                         Disconnect();
                         return;
                     }
+
                     var directlyWithoutSpooler = (firstUint & 0b10000000_00000000_00000000_00000000U) != 0;
                     var routerData = (firstUint & 0b01000000_00000000_00000000_00000000U) != 0;
                     DataFlags flag = DataFlags.None;
@@ -404,6 +429,7 @@ namespace CommunicationChannel
                     ReadBytes(dataLength, stream, flag);
                 }
             }
+
             try
             {
                 if (stream.CanTimeout)
@@ -447,6 +473,7 @@ namespace CommunicationChannel
                         if (partialLength > 65536)
                             partialLength = 65536;
                     }
+
                     remaining = lengthIncomingData - readDataLen;
                     if (partialLength > remaining)
                         partialLength = remaining;
@@ -455,6 +482,7 @@ namespace CommunicationChannel
                         stream.ReadTimeout = DataTimeout(partialLength);
                         UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
                     }
+
                     readDataLen += stream.Read(data, readDataLen, partialLength); //Avoid asynchronous method to overload the operation with asynchronous mode management
                     var mbps = Math.Round((readDataLen / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
                     if (stream.CanTimeout) // exclude pipe or similar
@@ -470,10 +498,12 @@ namespace CommunicationChannel
                         if (command != Protocol.Command.Ping)
                             SuspendAutoDisconnectTimer();
                     }
+
                     Channel.LastIN = DateTime.UtcNow;
                     if (DateTime.UtcNow >= timeOutAt)
                         throw new Exception("Data read timeout");
                 }
+
                 Debug.WriteLine("End download" + lengthIncomingData);
                 if (stream.CanTimeout) // exclude pipe or similar
                     UpdateDownloadSpeed?.Invoke(0, 0, lengthIncomingData);
@@ -484,6 +514,7 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
+
             Channel.OnDataReceives(data, flag, out var error, out var _);
             if (error != null)
             {
@@ -494,6 +525,7 @@ namespace CommunicationChannel
                 Disconnect();
                 return;
             }
+
             if (command != Protocol.Command.Ping)
                 ResumeAutoDisconnectTimer();
             new Task(() => BeginRead(Client)).Start();
@@ -531,17 +563,19 @@ namespace CommunicationChannel
                     Client = null;
                     Channel.ConnectionChange(false);
                 }
+
                 if (tryConnectAgain && !_disposed)
                     TryReconnection.Change(TimerIntervalCheckConnection, Timeout.Infinite); // restart check if connection is lost
             }
         }
+
         /// <summary>
         /// Find if the socket is connected to the remote host.
         /// </summary>
         /// <returns></returns>
         public bool IsConnected()
         {
-            return Client != null && Client.IsConnected && InternetAccess;             //According to the specifications, the property _client.Connected returns the connection status based on the last data transmission. The server may not be connected even if this property returns true
+            return Client != null && Client.IsConnected && InternetAccess; //According to the specifications, the property _client.Connected returns the connection status based on the last data transmission. The server may not be connected even if this property returns true
         }
     }
 }

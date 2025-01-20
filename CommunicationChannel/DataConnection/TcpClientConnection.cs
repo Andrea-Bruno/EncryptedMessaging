@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Net.Sockets;
-using System.Runtime.InteropServices.ComTypes;
 
 namespace CommunicationChannel.DataConnection
 {
@@ -22,9 +21,10 @@ namespace CommunicationChannel.DataConnection
         {
             int portInt = port ?? 0;
             _client = new TcpClient
-            {
+            {               
                 LingerState = new LingerOption(true, 0), // Close the connection immediately after the Close() method
             };
+            _client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             return _client.ConnectAsync(address, portInt).Wait(timeOutMs); // ms timeout
         }
 
