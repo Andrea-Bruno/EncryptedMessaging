@@ -48,11 +48,7 @@
 	<ItemGroup>
 	  <None Remove="CommunicationChannel.xml" />
 	</ItemGroup>
-
-	<ItemGroup>
-	  <ProjectReference Include="..\..\FullDuplexStreamSupport\FullDuplexStreamSupport.csproj" />
-	</ItemGroup>
-
+	
 	<ItemGroup>
 	  <None Update="LICENSE.md">
 	    <Pack>True</Pack>
@@ -63,5 +59,8 @@
 	    <PackagePath>\</PackagePath>
 	  </None>
 	</ItemGroup>
-
+	
+	<ItemGroup>
+	  <ProjectReference Include="..\..\FullDuplexStreamSupport\FullDuplexStreamSupport.csproj" />
+	</ItemGroup>
 </Project>

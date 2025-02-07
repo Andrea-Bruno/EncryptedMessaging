@@ -17,13 +17,11 @@
 		<PackageTags>Messaging engine, encrypted messaging software, signal type engine, telegram, whatsapp, bitcoin. cryptography, tcp, socket, chat</PackageTags>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<DefineConstants>DEBUG;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
-		<Optimize>false</Optimize>
-		<WarningLevel>0</WarningLevel>
+		<DefineConstants>DEBUG</DefineConstants>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-		<DebugSymbols>false</DebugSymbols>
-		<DebugType>portable</DebugType>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|AnyCPU'">
+		<DefineConstants>DEBUG</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="Properties\**" />

@@ -254,15 +254,11 @@ namespace CommunicationChannel
             Channel.LicenseExpired = false;
             TryReconnection.Change(Timeout.Infinite, Timeout.Infinite); // Stop check if connection is lost
             ResumeAutoDisconnectTimer();
-
-            //            Client.GetStream().Write(new byte[] { 1, 2, 3, 4 }, 0, 4);
-
             BeginRead(Client);
-
 
             void OnLogged()
             {
-                Thread.Sleep(500);
+                Thread.Sleep(1500); // Without a pause the sent data will not be received and the first time login will fail.
                 Logged = true;
                 Channel.ConnectionChange(true);
             }
