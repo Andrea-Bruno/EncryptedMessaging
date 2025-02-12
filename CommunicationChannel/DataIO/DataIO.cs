@@ -79,7 +79,7 @@ namespace CommunicationChannel
                         if (flag == DataFlags.DirectlyWithoutSpooler)
                             Debugger.Break(); // Don't send message directly without spooler before authentication on the server!
                         else
-                            Debugger.Break(); // Verify if the server running and if you have internet connection!  (Perhaps there is no server at the current entry point)
+                            Debugger.Break(); // Verify if the server running and if you have Internet connection!  (Perhaps there is no server at the current entry point)
 #endif
                         OnSendCompleted(data, flag, new Exception("Sending data without logging in!"), false);
                         return;
@@ -121,8 +121,6 @@ namespace CommunicationChannel
 #if DEBUG && !TEST
                             timeoutMs = Timeout.Infinite;
 #endif
-
-
                             if (stream.CanTimeout)
                             {
                                 stream.WriteTimeout = timeoutMs;
