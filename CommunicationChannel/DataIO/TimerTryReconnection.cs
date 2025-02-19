@@ -12,11 +12,7 @@ namespace CommunicationChannel
         internal readonly object LockIsConnected = new object();
         private void OnTryReconnection(object o)
         {
-            lock (LockIsConnected)
-            {
-                if (InternetAccess)
-                    Connect();
-            }
+            Connect();
         }
         // ===============================================================================================================================
 

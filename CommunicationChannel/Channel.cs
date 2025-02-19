@@ -108,10 +108,7 @@ namespace CommunicationChannel
             lock (Channels)
                 foreach (var channel in Channels)
                 {
-                    lock (channel.DataIO.LockIsConnected)
-                    {
-                        channel.DataIO.Connect();
-                    }
+                    channel.DataIO.Connect();
                 }
         }
         /// <summary>

@@ -66,12 +66,14 @@ namespace CommunicationChannel
                 var sendEvenWithoutLogin = dataLength > 0 && (data[0] == (byte)Protocol.Command.ConnectionEstablished || data[0] == (byte)Protocol.Command.DataReceivedConfirmation);
                 if (!sendEvenWithoutLogin)
                 {
+                    Connect(); // force reconnection!
+
                     if (!flag.HasFlag(DataFlags.DirectlyWithoutSpooler))
                         Debugger.Break(); // Don't send any data before login is done!
 
                     // Wait for the login to complete
                     OnLogged = new AutoResetEvent(false);
-                    if (!OnLogged.WaitOne(TimeOutMs))
+                    if (!OnLogged.WaitOne(TimeOutMs + LoginSleepTime))
                     {
 #if DEBUG && !TEST
                         // Login Timeout!
@@ -210,10 +212,16 @@ namespace CommunicationChannel
         /// <returns>Returns true if the connection is successful, false if there is an error</returns>
         internal bool Connect()
         {
-            if (_disposed)
+            if (ConnectionRunning)
                 return false;
+            ConnectionRunning = true;
             lock (this)
             {
+                if (_disposed)
+                {
+                    ConnectionRunning = false;
+                    return false;
+                }
                 if (!IsConnected() && InternetAccess)
                 {
                     StartLinger(out var exception);
@@ -221,16 +229,19 @@ namespace CommunicationChannel
                     {
                         Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
                         Disconnect();
+                        ConnectionRunning = false;
                         return false;
                     }
 
                     OnConnected();
                     KeepAliveRestart();
                 }
-            }
 
-            return true;
+                ConnectionRunning = false;
+                return true;
+            }
         }
+        private bool ConnectionRunning;
 
         private bool _Logged;
 
@@ -256,7 +267,7 @@ namespace CommunicationChannel
 
             void OnLogged()
             {
-                Thread.Sleep(1500); // Without a pause the sent data will not be received and the first time login will fail.
+                Thread.Sleep(LoginSleepTime); // Without a pause the sent data will not be received and the first time login will fail.
                 Logged = true;
                 Channel.ConnectionChange(true);
             }
@@ -264,9 +275,9 @@ namespace CommunicationChannel
             ;
             var login = Channel.CommandsForRouter.CreateCommand(Protocol.Command.ConnectionEstablished, null, null, Channel.MyId); // log in
 
-
             ExecuteSendData(login, OnLogged);
         }
+        const int LoginSleepTime = 1500;
 
         private void StartLinger(out Exception exception)
         {
