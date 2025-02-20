@@ -32,7 +32,7 @@ namespace CommunicationChannel
             Domain = domain;
             //ContextIsReady = contextIsReady;
             ConnectionTimeout = connectionTimeout;
-            DataIO = new DataIO(this);
+            DataIO = new DataIO.DataIO(this);
             CommandsForRouter = new CommandsForServer(this);
             Spooler = new Spooler(this);
             ServerUri = new UriBuilder(serverAddress).Uri; //new Uri(serverAddress);
@@ -60,7 +60,15 @@ namespace CommunicationChannel
         /// <summary>
         /// When was the last data reception (Utc)
         /// </summary>
-        public DateTime LastIN { get { return _LastIN; } internal set { DataIO.KeepAliveRestart(); _LastIN = value; } } // KeepAliveRestart() = The arrival of the received data is the confirmation that the connection is still present. The data transmitted under WSL does not generate an error even if there is no more internet line
+        public DateTime LastIN
+        {
+            get { return _LastIN; }
+            internal set
+            {
+                // DataIO.KeepAliveRefresh();
+                _LastIN = value;
+            }
+        } // KeepAliveRestart() = The arrival of the received data is the confirmation that the connection is still present. The data transmitted under WSL does not generate an error even if there is no more internet line
         /// <summary>
         /// The last command that was received from the router
         /// </summary>
@@ -93,7 +101,7 @@ namespace CommunicationChannel
         internal readonly int ConnectionTimeout = Timeout.Infinite;
         internal readonly ulong MyId;
         internal readonly Spooler Spooler;
-        internal readonly DataIO DataIO;
+        internal readonly DataIO.DataIO DataIO;
         /// <summary>
         /// class object to use command at server-side.
         /// </summary>
@@ -157,6 +165,8 @@ namespace CommunicationChannel
             }
             else if (command == Protocol.Command.Ping) // Pinging from the server does not reset the connection timeout, otherwise, if the pings occur frequently, the connection will never be closed
             {
+                LastPingReceived = DateTime.UtcNow;
+                DataIO.KeepAliveRefresh();
                 Debug.WriteLine("ping received!");
             }
             else if (command == Protocol.Command.Messages)
@@ -203,6 +213,9 @@ namespace CommunicationChannel
             }
             error = null;
         }
+
+        internal DateTime LastPingReceived;
+
         internal void OnTcpError(ErrorType errorId, string description)
         {
             //manage TCP error here

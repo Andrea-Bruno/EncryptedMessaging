@@ -2,20 +2,27 @@
 using System.Diagnostics;
 using System.Threading;
 
-namespace CommunicationChannel
+namespace CommunicationChannel.DataIO
 {
     internal partial class DataIO : IDisposable
     {
-        internal readonly Timer TimerKeepAlive;
-        internal readonly static TimeSpan KeepAliveInterval = TimeSpan.FromMinutes(5); // IMPORTANT: This value must be identical in the CommunicationChannel and RouterServer projects
+        private readonly Timer TimerKeepAlive;
+        private static TimeSpan KeepAliveInterval => TimeSpan.FromMinutes(5); // IMPORTANT: This value must be identical in the CommunicationChannel and RouterServer projects
+
         private void OnTimerKeepAlive(object o)
         {
+            if (!IsConnected() || ConnectionIsDead())
+            {
+                Disconnect();
+                return;
+            }
             Channel.LastKeepAliveCheck = DateTime.UtcNow;
             try
             {
                 var stream = Client?.GetStream();
                 stream?.Write(new byte[] { 0, 0, 0, 0 }, 0, 4); // The server responds to this command with a ping command which will update the time of the last incoming data packet LastIN
                 stream?.Flush();
+                LastPingRequired = DateTime.UtcNow;
             }
             catch (Exception ex)
             {
@@ -35,30 +42,45 @@ namespace CommunicationChannel
                 }
 #endif
             }
-            if (!IsConnected() || ConnectionIsDead())
-            {
-#if DEBUG && !TEST
-                Debugger.Break();
-#endif
-                Disconnect();
-            }
         }
+        private DateTime LastPingRequired;
 
         /// <summary>
         /// Indicates whether the connection has timed out based on the last data transmission.
-        /// Since the ping messages occur in persiodic mode, a lack of communication means beyond a certain period, they mean that the transmission is interrupted.
+        /// Since the ping messages occur in periodic mode, a lack of communication means beyond a certain period, they mean that the transmission is interrupted.
         /// </summary>
         /// <returns>True if the communication has timed out</returns>
         private bool ConnectionIsDead()
         {
-            // NOTE: This routine must be equal in CommunicationChannel and RouterServer project with LastIN and LastOUT reversed
-            var timeOut = KeepAliveInterval.Add(TimeSpan.FromSeconds(60)); // add a security margin
-            var timeFromLastIN = DateTime.UtcNow - Channel.LastIN;
-            return timeFromLastIN > timeOut;
+            // NOTE: This routine must be compatible between CommunicationChannel and RouterServer project with LastIN and LastOUT reversed
+            if (LastPingRequired == default)
+                return false;
+            var isTimeout = Channel.LastPingReceived == default;
+            Channel.LastPingReceived = default;
+            return isTimeout;
+
+            //var timeOut = KeepAliveInterval.Add(TimeSpan.FromSeconds(60)); // add a security margin
+            //var timespanLastPingReceived = DateTime.UtcNow - Channel.LastPingReceived;
+            //var result = timespanLastPingReceived > timeOut;
+
+            ////var timeFromLastIN = DateTime.UtcNow - Channel.LastIN;
+            ////var result = timeFromLastIN > timeOut;
+
+            //if (result)
+            //    Debugger.Break();
+            //return result;
         }
 
-        internal void KeepAliveRestart() => TimerKeepAlive.Change(KeepAliveInterval, KeepAliveInterval);
-        internal void KeepAliveSuspend() => TimerKeepAlive.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        internal void KeepAliveRefresh() => TimerKeepAlive.Change(KeepAliveInterval, KeepAliveInterval);
+
+        private void KeepAliveStart()
+        {
+            Channel.LastPingReceived = default;;
+            LastPingRequired = default;
+            KeepAliveRefresh();
+        }
+
+        private void KeepAliveStop() => TimerKeepAlive.Change(Timeout.Infinite, Timeout.Infinite);
 
         private bool _disposed;
         public void Dispose()

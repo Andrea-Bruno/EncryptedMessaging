@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using static CommunicationChannel.Channel;
 using static CommunicationChannel.CommandsForServer;
 
-namespace CommunicationChannel
+namespace CommunicationChannel.DataIO
 {
     /// <summary>
     /// This class is used for establishing link connection and communicating with the server.
@@ -234,7 +234,7 @@ namespace CommunicationChannel
                     }
 
                     OnConnected();
-                    KeepAliveRestart();
+                    KeepAliveStart();
                 }
 
                 ConnectionRunning = false;
@@ -561,7 +561,7 @@ namespace CommunicationChannel
                 if (Client != null) // Do not disconnect again
                 {
                     Logged = false;
-                    KeepAliveSuspend();
+                    KeepAliveStop();
                     SuspendAutoDisconnectTimer();
                     Client?.Disconnect();
                     Client?.Dispose();

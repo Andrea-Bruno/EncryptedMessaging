@@ -2,7 +2,7 @@
 using System.Threading;
 using static CommunicationChannel.Channel;
 
-namespace CommunicationChannel
+namespace CommunicationChannel.DataIO
 {
     internal partial class DataIO : IDisposable
     {
