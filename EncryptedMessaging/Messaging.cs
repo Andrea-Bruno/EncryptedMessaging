@@ -682,8 +682,7 @@ namespace EncryptedMessaging
         /// <param name="data">Data relating to the command sent. NOTE: if you intend to send an array of data, use the other overload</param>
         public void SendCommandToSubApplication(Contact toContact, ushort appId, ushort command, bool directlyWithoutSpooler = false, bool encrypted = true, byte[] data = null)
         {
-            if (data == null)
-                data = Array.Empty<byte>();
+            data ??= Array.Empty<byte>();
             SendMessage(MessageType.SubApplicationCommandWithData, data.Combine(BitConverter.GetBytes(appId), BitConverter.GetBytes(command)), toContact, null, null, null, directlyWithoutSpooler, encrypted);
         }
 
