@@ -372,25 +372,33 @@ namespace CommunicationChannel
         private static bool SplitAllPosts(byte[] data, out List<byte[]> posts)
         {
             posts = new List<byte[]>();
-            var p = 0;
-            if (data.Length > 0)
+            try
             {
-                do
+                var p = 0;
+                if (data.Length > 0)
                 {
-                    var len = Converter.BytesToInt(data.Skip(p).Take(4));
-                    p += 4;
-                    if (len + p > data.Length)
+                    do
                     {
-                        //Unexpected data length
-                        return false;
-                    }
-                    var post = new byte[len];
-                    Buffer.BlockCopy(data, p, post, 0, len);
-                    posts.Add(post); // post format: [1] version, [2][3][4][5] UNIX timestamp, [7] data type 
-                    p += len;
-                } while (p < data.Length);
+                        var len = Converter.BytesToInt(data.Skip(p).Take(4));
+                        p += 4;
+                        if (len + p > data.Length)
+                        {
+                            //Unexpected data length
+                            return false;
+                        }
+                        var post = new byte[len];
+                        Buffer.BlockCopy(data, p, post, 0, len);
+                        posts.Add(post); // post format: [1] version, [2][3][4][5] UNIX timestamp, [7] data type 
+                        p += len;
+                    } while (p < data.Length);
+                }
+                return p == data.Length;
+
             }
-            return p == data.Length;
+            catch (Exception)
+            {
+                return false;
+            }
         }
         /// <summary>
         /// The Dispose method is primarily implemented to release unmanaged resources. When working with instance members that are IDisposable implementations, it's common to cascade Dispose calls. There are additional reasons for implementing Dispose, for example, to free memory that was allocated, remove an item that was added to a collection, or signal the release of a lock that was acquired.
