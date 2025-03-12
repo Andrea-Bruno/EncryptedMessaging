@@ -238,8 +238,10 @@ namespace EncryptedMessaging
             {
                 if (!toIdUsers.Contains(Context.My.Id))
                 {
-                    var newUserList = new List<ulong>(toIdUsers);
-                    newUserList.Add(Context.My.Id);
+                    var newUserList = new List<ulong>(toIdUsers)
+                    {
+                        Context.My.Id
+                    };
                     toIdUsers = newUserList.ToArray();
                 }
                 if (chatId == null)

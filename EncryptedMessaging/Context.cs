@@ -425,7 +425,7 @@ namespace EncryptedMessaging
                 InstancedTimeUtc = DateTime.UtcNow;
             }
             CurrentConnectivity = connectivity;
-            Channel.InternetAccess = CurrentConnectivity == true;
+            InternetAccess = CurrentConnectivity == true;
         }
 
         /// <summary>
