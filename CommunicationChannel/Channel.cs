@@ -184,12 +184,8 @@ namespace CommunicationChannel
                 }
                 PostCounter++;
                 LastPostParts = posts.Count;
-                System.Threading.Tasks.Task.Run(() =>
+                void execute()
                 {
-
-                    //    new Thread(() =>
-                    //{
-
                     lock (OnMessageArrives)
                     {
                         posts.ForEach(post =>
@@ -207,9 +203,14 @@ namespace CommunicationChannel
                             }
                         });
                     }
-                    //}).Start();
-
-                });
+                }
+                if (Debugger.IsAttached)
+                    execute();
+                else
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        execute();
+                    });
             }
             error = null;
         }
@@ -228,10 +229,20 @@ namespace CommunicationChannel
                 ErrorLog += DateTime.UtcNow.ToString("MM/dd/yyyy HH:mm:ss") + " " + Status + ": " + description + "\r\n";
 
                 if (RefreshLogError != null)
-                    System.Threading.Tasks.Task.Run(() => RefreshLogError?.Invoke(ErrorLog));
+                {
+                    if (Debugger.IsAttached)
+                        RefreshLogError?.Invoke(ErrorLog);
+                    else
+                        System.Threading.Tasks.Task.Run(() => RefreshLogError?.Invoke(ErrorLog));
+                }
             }
             if (OnError != null)
-                System.Threading.Tasks.Task.Run(() => OnError?.Invoke(errorId, description));
+            {
+                if (Debugger.IsAttached)
+                    OnError?.Invoke(errorId, description);
+                else
+                    System.Threading.Tasks.Task.Run(() => OnError?.Invoke(errorId, description));
+            }
         }
 
         /// <summary>
@@ -267,7 +278,12 @@ namespace CommunicationChannel
             {
                 IsConnected = status;
                 if (OnRouterConnectionChange != null)
-                    System.Threading.Tasks.Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
+                {
+                    if (Debugger.IsAttached)
+                        OnRouterConnectionChange?.Invoke(IsConnected);
+                    else
+                        System.Threading.Tasks.Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
+                }
             }
         }
 

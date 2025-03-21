@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using CommunicationChannel;
 using static EncryptedMessaging.MessageFormat;
 
@@ -65,7 +66,7 @@ namespace EncryptedMessaging
                 {
                     _currentChatRoom.SetUnreadMessages(0, true);
                     if (!MultipleChatModes)
-                        new Thread(() => _currentChatRoom.ReadPosts(true)).Start();
+                        new Task(() => _currentChatRoom.ReadPosts(true)).Start();
                 }
             }
         }
