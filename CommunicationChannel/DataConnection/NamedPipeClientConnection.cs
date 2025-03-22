@@ -33,7 +33,7 @@ namespace CommunicationChannel.DataConnection
                     var pipeOut = new NamedPipeClientStream(".", basePipeName + nameof(PipeDirection.In), PipeDirection.Out); // Stream Output must be connected with the server's input
                     PipeStream.InitializeClient(pipeIn, pipeOut, timeOutMs);
                 }
-                PipeStreamClient = PipeStream.AddNewCLient();
+                PipeStreamClient = PipeStream.AddNewClient();
                 // PipeStreamClient = new PipeStreamClient(PipeStream);
                 PipeStreamClient.Connect(timeOutMs);
                 if (!PipeStreamClient.IsConnected)

@@ -22,7 +22,7 @@ namespace CommunicationChannel
         /// <param name="myId">The identifier of the current user. Since the server system is focused on anonymity and security, there is no user list, it is a cryptographic id generated with a hashing algorithm</param>
         /// <param name="connectionTimeout">Used to remove the connection when not in use. However, mobile systems remove the connection when the application is in the background so it makes no sense to try to keep the connection always open. This also lightens the number of simultaneous server-side connections.</param>
         /// <param name="licenseActivator">OEM ID (ulong) and algorithm for the digital signature of the license activation. If present, this function will be called to digitally sign at the time of authentication. The digital signature must be put by the OEM who must have the activation licenses. The router will check if the license is valid upon connection.</param>
-        /// <param name="onError">It is used as an event to handle the reporting of errors to the host. If set in the initialization phase, this delegate will be called at each tcp error, to notify the type of error and its description</param>
+        /// <param name="onError">It is used as an event to handle the reporting of errors to the host. If set in the initialization phase, this delegate will be called at each data IO error (TCP, Pipe, etc..), to notify the type of error and its description</param>
         public Channel(string serverAddress, int domain, Action<ulong, byte[]> onMessageArrives, Action<uint> onDataDeliveryConfirm, ulong myId, int connectionTimeout = Timeout.Infinite, Tuple<ulong, Func<byte[], byte[]>> licenseActivator = null, OnErrorEvent onError = null)
         {
             AntiDuplicate = new AntiDuplicate(myId);
@@ -344,14 +344,14 @@ namespace CommunicationChannel
         public ulong KeepAliveFailures { get; internal set; }
         //=================================================================================================
 
-        private bool _Internet = false;
-        private bool Internet
+        private bool _Connectivity = false;
+        private bool Connectivity
         {
             set
             {
-                if (_Internet != value)
+                if (_Connectivity != value)
                 {
-                    _Internet = value;
+                    _Connectivity = value;
                     if (value)
                         DataIO.Connect();
                     else
@@ -363,7 +363,7 @@ namespace CommunicationChannel
         private static bool _InternetAccess;
 
         /// <summary>
-        /// Check internet access.
+        /// Check Internet access.
         /// </summary>
         public static bool InternetAccess
         {
@@ -373,7 +373,11 @@ namespace CommunicationChannel
                 _InternetAccess = value;
                 lock (Channels)
                 {
-                    Channels.ForEach(channel => channel.Internet = _InternetAccess);
+                    Channels.ForEach(channel =>
+                    {
+                        if (channel.ServerUri.Scheme.StartsWith("http"))
+                            channel.Connectivity = _InternetAccess;
+                    });
                 }
             }
         }
