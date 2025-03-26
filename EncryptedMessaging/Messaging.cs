@@ -78,41 +78,44 @@ namespace EncryptedMessaging
         /// <param name="data">The data in raw format sent to the group (data yet to be interpreted, decrypted and validated)</param>
         internal void ExecuteOnDataArrival(ulong chatId, byte[] data)
         {
-            var receptionTime = DateTime.UtcNow;
-            if (Context.MessageFormat.ReadDataPost(data, chatId, receptionTime, out var message, true))
+            lock (this)
             {
-                var isViewable = MessageDescription.ContainsKey(message.Type);
-                if (!message.Encrypted) // Incoming messages without encryption are ignored
+                var receptionTime = DateTime.UtcNow;
+                if (Context.MessageFormat.ReadDataPost(data, chatId, receptionTime, out var message, true))
                 {
-                    if (!isViewable)
-                        ExecuteCommand(chatId, message);
-                }
-                else // Only encrypted messages are taken into consideration, they have been validated by verifying the digital signature
-                {
-                    if (!message.Contact.IsBlocked || message.Type == MessageType.ContactStatus)
+                    var isViewable = MessageDescription.ContainsKey(message.Type);
+                    if (!message.Encrypted) // Incoming messages without encryption are ignored
                     {
-                        message.Contact.ExtendSessionTimeout();
-                        if ((isViewable || message.Type == MessageType.LastReading) && message.Contact.IsVisible)
-                        {
-                            Context.Repository.AddPost(data, chatId, ref receptionTime);
-                            if (isViewable)
-                            {
-                                Context.OnNotificationInvoke(message);
-                                if (CurrentChatRoom != message.Contact)
-                                    message.Contact.SetUnreadMessages(message.Contact.UnreadMessages + 1, true);
-                                if (MultipleChatModes || CurrentChatRoom == message.Contact)
-                                    // The device is viewing this chat, so I add the message immediately
-                                    ShowMessage(message, message.GetAuthor().SequenceEqual(Context.My.GetPublicKeyBinary()));
-                                message.Contact.RaiseEventLastMessageChanged(message);
-                            }
-                        }
                         if (!isViewable)
                             ExecuteCommand(chatId, message);
-                        UpdateReading(message);
                     }
-                    else
+                    else // Only encrypted messages are taken into consideration, they have been validated by verifying the digital signature
                     {
-                        SendContactStatus(message.Contact);
+                        if (!message.Contact.IsBlocked || message.Type == MessageType.ContactStatus)
+                        {
+                            message.Contact.ExtendSessionTimeout();
+                            if ((isViewable || message.Type == MessageType.LastReading) && message.Contact.IsVisible)
+                            {
+                                Context.Repository.AddPost(data, chatId, ref receptionTime);
+                                if (isViewable)
+                                {
+                                    Context.OnNotificationInvoke(message);
+                                    if (CurrentChatRoom != message.Contact)
+                                        message.Contact.SetUnreadMessages(message.Contact.UnreadMessages + 1, true);
+                                    if (MultipleChatModes || CurrentChatRoom == message.Contact)
+                                        // The device is viewing this chat, so I add the message immediately
+                                        ShowMessage(message, message.GetAuthor().SequenceEqual(Context.My.GetPublicKeyBinary()));
+                                    message.Contact.RaiseEventLastMessageChanged(message);
+                                }
+                            }
+                            if (!isViewable)
+                                ExecuteCommand(chatId, message);
+                            UpdateReading(message);
+                        }
+                        else
+                        {
+                            SendContactStatus(message.Contact);
+                        }
                     }
                 }
             }

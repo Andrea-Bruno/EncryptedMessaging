@@ -107,10 +107,10 @@ namespace CommunicationChannel
 
 		private void SaveQueueList()
 		{
-			using (var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Create, FileAccess.Write, IsoStorage))
-				foreach (var item in _inQueue)
-					stream.Write(item.Item2.GetBytes(), 0, 4);
-		}
+            using var stream = new IsolatedStorageFileStream(_queueListName, FileMode.Create, FileAccess.Write, IsoStorage);
+            foreach (var item in _inQueue)
+                stream.Write(item.Item2.GetBytes(), 0, 4);
+        }
 		/// <summary>
 		/// On send completed it remove the sent packet and insert in the spooler queue before closing the communication channnel.
 		/// </summary>

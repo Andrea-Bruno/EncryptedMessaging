@@ -53,18 +53,16 @@ namespace EncryptedMessaging
             {
                 // Alternative Method for iOS
                 string[] domains = { "apple.com", "icloud.com" }; // Cloudflare
-                using (var client = new MyWebClient())
+                using var client = new MyWebClient();
+                foreach (var domain in domains)
                 {
-                    foreach (var domain in domains)
+                    try
                     {
-                        try
-                        {
-                            using (client.OpenRead("http://" + domain))
-                                return true;
-                        }
-                        catch
-                        {
-                        }
+                        using (client.OpenRead("http://" + domain))
+                            return true;
+                    }
+                    catch
+                    {
                     }
                 }
             }

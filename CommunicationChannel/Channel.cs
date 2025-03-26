@@ -184,36 +184,30 @@ namespace CommunicationChannel
                 }
                 PostCounter++;
                 LastPostParts = posts.Count;
-                void execute()
+                System.Threading.Tasks.Task.Run(() =>
                 {
-                    lock (OnMessageArrives)
+                    DataReceivedInprocessing++;
+                    Thread.CurrentThread.Name = nameof(DataReceivedInprocessing) + DataReceivedInprocessing;
+                    posts.ForEach(post =>
                     {
-                        posts.ForEach(post =>
+                        if (flag == DataFlags.None && AntiDuplicate.AlreadyReceived(post))
                         {
-                            if (flag == DataFlags.None && AntiDuplicate.AlreadyReceived(post))
-                            {
-                                DuplicatePost++;
+                            DuplicatePost++;
 #if DEBUG && !TEST
-                                Debugger.Break();
+                            Debugger.Break();
 #endif
-                            }
-                            else
-                            {
-                                OnMessageArrives?.Invoke(chatId, post);
-                            }
-                        });
-                    }
-                }
-                if (Debugger.IsAttached)
-                    execute();
-                else
-                    System.Threading.Tasks.Task.Run(() =>
-                    {
-                        execute();
+                        }
+                        else
+                        {
+                            OnMessageArrives?.Invoke(chatId, post);
+                        }
                     });
+                    DataReceivedInprocessing--;
+                });
             }
             error = null;
         }
+        internal int DataReceivedInprocessing;
 
         internal DateTime LastPingReceived;
 
@@ -230,18 +224,12 @@ namespace CommunicationChannel
 
                 if (RefreshLogError != null)
                 {
-                    if (Debugger.IsAttached)
-                        RefreshLogError?.Invoke(ErrorLog);
-                    else
-                        System.Threading.Tasks.Task.Run(() => RefreshLogError?.Invoke(ErrorLog));
+                    System.Threading.Tasks.Task.Run(() => RefreshLogError?.Invoke(ErrorLog));
                 }
             }
             if (OnError != null)
             {
-                if (Debugger.IsAttached)
-                    OnError?.Invoke(errorId, description);
-                else
-                    System.Threading.Tasks.Task.Run(() => OnError?.Invoke(errorId, description));
+                System.Threading.Tasks.Task.Run(() => OnError?.Invoke(errorId, description));
             }
         }
 
@@ -279,10 +267,7 @@ namespace CommunicationChannel
                 IsConnected = status;
                 if (OnRouterConnectionChange != null)
                 {
-                    if (Debugger.IsAttached)
-                        OnRouterConnectionChange?.Invoke(IsConnected);
-                    else
-                        System.Threading.Tasks.Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
+                    System.Threading.Tasks.Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
                 }
             }
         }

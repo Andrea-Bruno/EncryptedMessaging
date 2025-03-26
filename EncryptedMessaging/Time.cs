@@ -78,22 +78,20 @@ namespace EncryptedMessaging
 
         private static DateTime? GetDateTimeFromWeb(Uri fromWebsite)
         {
-            using (var client = new HttpClient())
+            using var client = new HttpClient();
+            try
             {
-                try
-                {
-                    var cancellationTokenSource = new CancellationTokenSource();
-                    cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(1));
-                    var result = client.GetAsync(fromWebsite, HttpCompletionOption.ResponseHeadersRead, cancellationTokenSource.Token).Result;
-                    if (result.Headers?.Date != null)
-                        return result.Headers?.Date.Value.UtcDateTime.AddMilliseconds(366); // for stats the time of website have a error of 366 ms; 					
-                }
-                catch
-                {
-                    // ignored
-                }
-                return null;
+                var cancellationTokenSource = new CancellationTokenSource();
+                cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(1));
+                var result = client.GetAsync(fromWebsite, HttpCompletionOption.ResponseHeadersRead, cancellationTokenSource.Token).Result;
+                if (result.Headers?.Date != null)
+                    return result.Headers?.Date.Value.UtcDateTime.AddMilliseconds(366); // for stats the time of website have a error of 366 ms; 					
             }
+            catch
+            {
+                // ignored
+            }
+            return null;
         }
         private static bool UpdateSystemDate(DateTime newDateTimeUtc, int toleranceSec = 2)
         {
