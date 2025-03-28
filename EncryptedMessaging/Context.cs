@@ -66,7 +66,7 @@ namespace EncryptedMessaging
         /// <param name="multipleChatModes">If this mode is enabled there will be multiple chat rooms simultaneously, all archived messages will be preloaded with the initialization of this library, this involves a large use of memory but a better user experience. Otherwise, only one char room will be managed at a time, archived messages will be loaded only when you enter the chat, this mode consumes less memory.</param>
         /// <param name="privateKeyOrPassphrase"></param>
         /// <param name="modality">Indicates if a server is initialized: The server has some differences compared to the device which are: It does not store contacts and posts (contacts are acquired during the session and when it expires they are deleted, so the contacts are not even synchronized on the cloud, there is no is the backup and restore that instead occurs for applications on devices).</param>
-        /// <param name="internetAccess">True if network is available</param>
+        /// <param name="connectivity">True if network is available (Pipe or Internet, depend of type of Entry Point)</param>
         /// <param name="invokeOnMainThread">Method that starts the main thread: Actions that have consequences with updating the user interface must run on the main thread otherwise they cause a crash</param>
         /// <param name="getSecureKeyValue">System secure function to read passwords and keys saved with the corresponding set function</param>
         /// <param name="setSecureKeyValue">System secure function for saving passwords and keys</param>
@@ -75,7 +75,7 @@ namespace EncryptedMessaging
         /// <param name="cloudPath">Specify the location of the cloud directory (where it saves and reads files), if you don't want to use the system one. The cloud is used only in server mode</param>
         /// <param name="licenseActivator">If present, set up a license authentication system. There are several methods to authenticate the license in this regard see the class initializer notes of this parameter.</param>
         /// <param name="instanceId">If you want to initialize multiple instances of this component, a unique id must be assigned, if not assigned a progressive id will be assigned automatically. This value allows the recovery of the saved key when the application is restarted</param>
-        public Context(string entryPoint, string networkName = "testnet", bool multipleChatModes = false, string privateKeyOrPassphrase = null, Modality modality = Modality.Client, bool? internetAccess = null, Action<Action> invokeOnMainThread = null, Func<string, string> getSecureKeyValue = null, Storage.SetKeyValueSecure setSecureKeyValue = null, Func<string> getFirebaseToken = null, Func<string> getAppleDeviceToken = null, string cloudPath = null, OEM licenseActivator = null, string instanceId = null)
+        public Context(string entryPoint, string networkName = "testnet", bool multipleChatModes = false, string privateKeyOrPassphrase = null, Modality modality = Modality.Client, bool? connectivity = null, Action<Action> invokeOnMainThread = null, Func<string, string> getSecureKeyValue = null, Storage.SetKeyValueSecure setSecureKeyValue = null, Func<string> getFirebaseToken = null, Func<string> getAppleDeviceToken = null, string cloudPath = null, OEM licenseActivator = null, string instanceId = null)
         {
             Session = new Dictionary<string, object>();
             try
@@ -99,8 +99,8 @@ namespace EncryptedMessaging
                 instanceId = guid + counter.ToString(CultureInfo.InvariantCulture);
             }
             // instanceId = Instances.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            if (internetAccess != null)
-                tmpInternetAccess = internetAccess;
+            if (connectivity != null)
+                tmpConnectivity = connectivity;
 
             //Cloud.ReceiveCloudCommands.SetCustomPath(cloudPath, isServer);
             var runtimePlatform = Contact.RuntimePlatform.Undefined;
@@ -184,7 +184,7 @@ namespace EncryptedMessaging
         /// A temporary key and value registry made available to the host to temporarily store values
         /// </summary>
         public Dictionary<string, object> Session { get; private set; }
-        static private bool? tmpInternetAccess;
+        static private bool? tmpConnectivity;
         /// <summary>
         /// Delegate for the action to be taken when messages arrive
         /// </summary>
@@ -335,6 +335,11 @@ namespace EncryptedMessaging
         private readonly bool IsRestored;
 
         /// <summary>
+        /// The type of connection that is used to connect to the router
+        /// </summary>
+        public ConnectivityType ConnectivityType => EntryPoint.Scheme.Equals(nameof(ConnectivityType.Pipe), StringComparison.OrdinalIgnoreCase) ? ConnectivityType.Pipe : ConnectivityType.Internet;
+
+        /// <summary>
         /// What to do when the context instance has been created and released
         /// Do not put instructions here that send messages (otherwise the application crashes due to isReady which will remain false)
         /// </summary>
@@ -351,12 +356,15 @@ namespace EncryptedMessaging
             if (!OnConnectivityChangeIsAssigned) // Static variable that prevents multiple assignments
             {
                 OnConnectivityChangeIsAssigned = true;
-                NetworkChange.NetworkAvailabilityChanged += (sender, e) => OnConnectivityChange(e.IsAvailable);
+                NetworkChange.NetworkAvailabilityChanged += (sender, e) => OnConnectivityChange(e.IsAvailable, ConnectivityType.Internet);
             }
             IsInitialized = true;
             lock (Contexts)
             {
-                SetConnectivity(tmpInternetAccess ?? CurrentConnectivity ?? NetworkInterface.GetIsNetworkAvailable());
+                if (ConnectivityType == ConnectivityType.Pipe )
+                    SetConnectivity(tmpConnectivity ?? CurrentConnectivity ?? false, ConnectivityType.Pipe);
+                else
+                    SetConnectivity(tmpConnectivity ?? CurrentConnectivity ?? NetworkInterface.GetIsNetworkAvailable(), ConnectivityType.Internet);
             }
 #if DEBUG_RAM
             //Contacts.RestoreMyContactFromCloud();
@@ -404,23 +412,30 @@ namespace EncryptedMessaging
         static private bool OnConnectivityChangeIsAssigned;
         /// <summary>
         /// Function that must be called whenever the host system has a change of state on the connection. This parameter must be set when starting the application.
-        /// If it is not set, the libraries do not know if there are changes in the state of the internet connection, and the messages could remain in the queue without being sent.
+        /// If it is not set, the libraries do not know if there are changes in the state of the Internet/Pipe connection, and the messages could remain in the queue without being sent.
         /// </summary>
         /// <param name="connectivity">Network connection status true or false</param>
-        public static void OnConnectivityChange(bool connectivity)
+        /// <param name="connectivityType">The type of connection that is used to connect to the router</param>
+        public static void OnConnectivityChange(bool connectivity, ConnectivityType connectivityType)
         {
             lock (Contexts)
             {
                 if (connectivity == CurrentConnectivity) return;
-                SetConnectivity(connectivity);
+                SetConnectivity(connectivity, connectivityType);
             }
         }
 
-        private static void SetConnectivity(bool connectivity)
+        private static void SetConnectivity(bool connectivity, ConnectivityType connectivitytype)
         {
+            if (connectivitytype == ConnectivityType.Pipe)
+            {
+                CurrentConnectivity = connectivity;
+                PipeAccess = CurrentConnectivity == true;
+            }
+            else
             if (connectivity)
             {
-                // Since the clock setting requires internet, this call also verifies if there really is an internet connection
+                // Since the clock setting requires Internet, this call also verifies if there really is an Internet connection
                 Time.GetCurrentTimeGMT(out bool? internetConnectionError);
                 if (internetConnectionError == false)
                 {
@@ -443,21 +458,22 @@ namespace EncryptedMessaging
                 if (!connectivity)
                 {
                     // Automatically recheck the connection in one minute (reset the timer)
-                    CheckConnectivity.Change(Timeout.Infinite, Timeout.Infinite);
-                    CheckConnectivity.Change(60000, Timeout.Infinite);
+                    CheckInternetConnectivity.Change(Timeout.Infinite, Timeout.Infinite);
+                    CheckInternetConnectivity.Change(60000, Timeout.Infinite);
                 }
 
                 InstancedTimeUtc = DateTime.UtcNow;
+                CurrentConnectivity = connectivity;
+                InternetAccess = CurrentConnectivity == true;
             }
-            CurrentConnectivity = connectivity;
-            InternetAccess = CurrentConnectivity == true;
+
         }
 
         /// <summary>
         /// Indicates when the object was instantiated
         /// </summary>
         public static DateTime InstancedTimeUtc { get; private set; }
-        private static Timer CheckConnectivity = new Timer((o) => { OnConnectivityChange(true); }, null, Timeout.Infinite, Timeout.Infinite);
+        private static Timer CheckInternetConnectivity = new Timer((o) => { OnConnectivityChange(true, ConnectivityType.Internet); }, null, Timeout.Infinite, Timeout.Infinite);
         private static readonly Dictionary<Guid, int> Counter = new Dictionary<Guid, int>();
         internal readonly Contact.RuntimePlatform RuntimePlatform;
 

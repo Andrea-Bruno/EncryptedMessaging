@@ -23,7 +23,7 @@ namespace EncryptedMessaging
     public static class Functions
     {
         /// <summary>
-        /// Get if internet connection is active and working
+        /// Get if Internet connection is active and working
         /// </summary>
         /// <returns>true or false</returns>
         public static bool IsInternetAvailable()
@@ -479,7 +479,7 @@ namespace EncryptedMessaging
             if (Context.CurrentConnectivity == false && _disallowTrySwitchOnConnectivity == false)
             {
                 if (IsInternetAvailable())
-                    Context.OnConnectivityChange(true);
+                    Context.OnConnectivityChange(true, CommunicationChannel.Channel.ConnectivityType.Internet);
                 else
                     _disallowTrySwitchOnConnectivity = true;
             }

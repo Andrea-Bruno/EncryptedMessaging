@@ -129,6 +129,12 @@ namespace CommunicationChannel
         /// server URL.
         /// </summary>
         public readonly Uri ServerUri;
+
+        /// <summary>
+        /// Indicates the type of connection that is established with the router (this depends on the entry point specified)
+        /// </summary>
+        public ConnectivityType TypeOfConnection => ServerUri.Scheme.Equals(nameof(ConnectivityType.Pipe), StringComparison.OrdinalIgnoreCase ) ? ConnectivityType.Pipe : Channel.ConnectivityType.Internet;
+
         /// <summary>
         /// Server domain id.
         /// </summary>
@@ -345,10 +351,25 @@ namespace CommunicationChannel
             }
         }
 
+        /// <summary>
+        /// Type of connectivity
+        /// </summary>
+        public enum ConnectivityType
+        {
+            /// <summary>
+            /// Internet connection
+            /// </summary>
+            Internet,
+            /// <summary>
+            /// Pipe bidirectional connection
+            /// </summary>
+            Pipe
+        }
+
         private static bool _InternetAccess;
 
         /// <summary>
-        /// Check Internet access.
+        /// Status Internet access.
         /// </summary>
         public static bool InternetAccess
         {
@@ -362,6 +383,28 @@ namespace CommunicationChannel
                     {
                         if (channel.ServerUri.Scheme.StartsWith("http"))
                             channel.Connectivity = _InternetAccess;
+                    });
+                }
+            }
+        }
+
+        private static bool _PipeAccess;
+
+        /// <summary>
+        /// Status Pipe access.
+        /// </summary>
+        public static bool PipeAccess
+        {
+            get => _PipeAccess;
+            set
+            {
+                _PipeAccess = value;
+                lock (Channels)
+                {
+                    Channels.ForEach(channel =>
+                    {
+                        if (channel.ServerUri.Scheme.StartsWith("pipe"))
+                            channel.Connectivity = _PipeAccess;
                     });
                 }
             }

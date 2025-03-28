@@ -28,7 +28,7 @@ namespace CommunicationChannel.DataIO
 
         private void SetNewClient()
         {
-            if (Channel.ServerUri.Scheme.ToLower() == "pipe")
+            if (Channel.TypeOfConnection == ConnectivityType.Pipe)
                 Client = new NamedPipeClientConnection();
             else
                 Client = new TcpClientConnection();
