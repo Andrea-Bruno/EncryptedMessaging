@@ -52,7 +52,7 @@
 	//					Add = "Add";
 	//					Remove = "Remove";
 	//					Delete = "Delete";
-	//					Info = "Anonymous white label - open source project - © BitBoxLab OU 2020";
+	//					Info = "Anonymous white label - open source project - © ANdrea Bruno 2020";
 	//					OpenSource = "Open Source";
 	//					EditPrivateKey = "Edit private key";
 	//					TooManyParticipants = "Too many participants have been added";

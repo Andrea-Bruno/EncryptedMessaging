@@ -160,7 +160,7 @@
     <value>Delete</value>
   </data>
   <data name="Info" xml:space="preserve">
-    <value>We are Anonymous. We are legion. We do not forgive. We do not forget. Expect us!</value>
+    <value>We are anonymous. We are legion. We do not forgive. We do not forget. Expect us!</value>
   </data>
   <data name="EditPrivateKey" xml:space="preserve">
     <value>Edit private key</value>

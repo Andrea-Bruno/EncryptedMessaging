@@ -286,7 +286,7 @@ namespace EncryptedMessaging.Resources {
         }
         
         /// <summary>
-        ///   Cerca una stringa localizzata simile a We are Anonymous. We are legion. We do not forgive. We do not forget. Expect us!.
+        ///   Cerca una stringa localizzata simile a We are anonymous. We are legion. We do not forgive. We do not forget. Expect us!.
         /// </summary>
         public static string Info {
             get {
