@@ -12,8 +12,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using EncryptedMessaging.Resources;
 using NBitcoin;
-using System.Runtime.InteropServices;
-using System.Net.Http;
+using static EncryptedMessaging.Contact;
 
 namespace EncryptedMessaging
 {
@@ -23,36 +22,35 @@ namespace EncryptedMessaging
     public static class Functions
     {
         /// <summary>
+        /// Get the current platform
+        /// </summary>
+        static public Contact.RuntimePlatform CurrentPlatform
+        {
+            get
+            {
+                var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties().ToString().ToLower(CultureInfo.InvariantCulture);
+                if (ipGlobalProperties.Contains(".android"))
+                    return Contact.RuntimePlatform.Android;
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    return Contact.RuntimePlatform.Windows;
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    return Contact.RuntimePlatform.Unix;
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    return Contact.RuntimePlatform.iOS;
+                return Contact.RuntimePlatform.Undefined;
+            }
+        }
+
+        /// <summary>
         /// Get if Internet connection is active and working
         /// </summary>
         /// <returns>true or false</returns>
         public static bool IsInternetAvailable()
         {
-            // this version don't work in iOS (mobile)
-            byte[] addressBytes = { 1, 1, 1, 1 }; // Cloudflare
-            IPAddress[] ipsDns = { GetDnsAddress(), new IPAddress(addressBytes) };
-            using (Ping ping = new Ping())
-            {
-                foreach (IPAddress ipDns in ipsDns)
-                {
-                    if (ipDns != null)
-                    {
-                        try
-                        {
-                            PingReply reply = ping.Send(ipDns, 1000);
-                            if (reply.Status == IPStatus.Success)
-                                return true;
-                        }
-                        catch (Exception)
-                        {
-                        }
-                    }
-                }
-            }
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            if (CurrentPlatform == RuntimePlatform.iOS || CurrentPlatform == RuntimePlatform.Android)
             {
                 // Alternative Method for iOS
-                string[] domains = { "apple.com", "icloud.com" }; // Cloudflare
+                string[] domains = { "apple.com", "icloud.com" };
                 using var client = new MyWebClient();
                 foreach (var domain in domains)
                 {
@@ -66,45 +64,33 @@ namespace EncryptedMessaging
                     }
                 }
             }
+            else
+            {// this version don't work in iOS (mobile)
+                byte[] cloudflare = { 1, 1, 1, 1 };
+                var dns = GetDnsAddress();
+                var ipsDns = dns == null ? (new IPAddress[] { new IPAddress(cloudflare) }) : (new IPAddress[] { dns, new IPAddress(cloudflare) });
+                using (Ping ping = new Ping())
+                {
+                    foreach (IPAddress ipDns in ipsDns)
+                    {
+                        if (ipDns != null)
+                        {
+                            try
+                            {
+                                PingReply reply = ping.Send(ipDns, 1000);
+                                if (reply.Status == IPStatus.Success)
+                                    return true;
+                            }
+                            catch (Exception)
+                            {
+                            }
+                        }
+                    }
+                }
+            }
             return false;
         }
 
-        private static bool PingHost(Uri address)
-        {
-
-            try
-            {
-                using (var client = new MyWebClient())
-                using (client.OpenRead(address))
-                    return true;
-            }
-            catch
-            {
-                return false;
-            }
-
-            // this version don't work in iOS
-            //var pingable = false;
-            //Ping pinger = null;
-            //try
-            //{
-            //	pinger = new Ping();
-            //	PingReply reply = pinger.Send(nameOrAddress);
-            //	pingable = reply.Status == IPStatus.Success;
-            //}
-            //catch (PingException)
-            //{
-            //	// Discard PingExceptions and return false;
-            //}
-            //finally
-            //{
-            //	if (pinger != null)
-            //	{
-            //		pinger.Dispose();
-            //	}
-            //}
-            //return pingable;
-        }
 
 
 
@@ -119,10 +105,11 @@ namespace EncryptedMessaging
                 if (ni.OperationalStatus == OperationalStatus.Up)
                 {
                     IPInterfaceProperties properties = ni.GetIPProperties();
-                    foreach (IPAddress dns in properties.DnsAddresses)
-                    {
-                        return dns;
-                    }
+                    if (properties.DnsAddresses != null)
+                        foreach (IPAddress dns in properties.DnsAddresses)
+                        {
+                            return dns;
+                        }
                 }
             }
             return null;
@@ -474,16 +461,16 @@ namespace EncryptedMessaging
 
 
         private static bool _disallowTrySwitchOnConnectivity;
-        internal static void TrySwitchOnConnectivity()
+        internal static void TrySwitchOnInternetConnectivity()
         {
-            if (Context.CurrentConnectivity == false && _disallowTrySwitchOnConnectivity == false)
+            if (Context.CurrentConnectivity[CommunicationChannel.Channel.ConnectivityType.Internet] == false && _disallowTrySwitchOnConnectivity == false)
             {
                 if (IsInternetAvailable())
                     Context.OnConnectivityChange(true, CommunicationChannel.Channel.ConnectivityType.Internet);
                 else
                     _disallowTrySwitchOnConnectivity = true;
             }
-            if (Context.CurrentConnectivity == true)
+            if (Context.CurrentConnectivity[CommunicationChannel.Channel.ConnectivityType.Internet] == true)
                 _disallowTrySwitchOnConnectivity = false;
         }
 
@@ -503,7 +490,7 @@ namespace EncryptedMessaging
         /// <param name="parameters">Parameters</param>
         /// <param name="useShellExecute">True if the shell should be used when starting the process; false if the process should be created directly from the executable file.</param>
         /// <returns>Result of command if the command generates an output</returns>
-        public static string ExecuteCommand(string command, string parameters, bool useShellExecute = false)
+        public static bool ExecuteCommand(string command, string parameters, bool useShellExecute = false)
         {
             Process process = new Process();
             process.StartInfo.FileName = command;
@@ -518,10 +505,9 @@ namespace EncryptedMessaging
             if (useShellExecute)
             {
                 process.WaitForExit();
-                return null;
             }
-            string output = process.StandardOutput.ReadToEnd();
-            return output;
+            // string output = process.StandardOutput.ReadToEnd();
+            return process.ExitCode == 0;
         }
     }
 }

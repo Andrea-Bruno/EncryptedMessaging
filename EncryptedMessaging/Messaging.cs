@@ -309,13 +309,13 @@ namespace EncryptedMessaging
                 LoginToServer(@params.DirectlyWithoutSpooler, @params.ToContact);
             }
 
-            if (Context.CurrentConnectivity != true)
+            if (Context.CurrentConnectivity[Context.ConnectivityType] != true)
             {
                 // The status of the Internet connection may not correspond to reality, so let's try a ping to verify it, in order to update the current status if necessary
                 if (!AlreadyTrySwitchOnConnectivity)
                 {
                     AlreadyTrySwitchOnConnectivity = true;
-                    Functions.TrySwitchOnConnectivity();
+                    Functions.TrySwitchOnInternetConnectivity();
                 }
             }
             else

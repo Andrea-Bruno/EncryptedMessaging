@@ -17,12 +17,11 @@ namespace EncryptedMessaging
         private static TimeSpan Delta = new TimeSpan(long.MinValue);
 
         /// <summary>
-        /// Get current time & time based on system timezone.
+        /// Get current time and time based on system timezone.
         /// </summary>
-        /// <returns>Current time & time, or null If there is no internet connection</returns>
+        /// <returns>Current time and time, or null If there is no Internet connection</returns>
         public static DateTime GetCurrentTimeGMT(out bool? internetConnectionError)
         {
-            bool detected;
             lock (Environment.OSVersion)
             {
                 if (!Detected)
@@ -36,7 +35,6 @@ namespace EncryptedMessaging
                 }
                 else
                 {
-                    detected = false;
                     internetConnectionError = null;
                 }
             }
