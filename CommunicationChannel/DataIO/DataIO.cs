@@ -292,13 +292,13 @@ namespace CommunicationChannel.DataIO
                     port = Channel.ServerUri.Port;
                     address = addresses[0].ToString();
 
-                    using Ping ping = new Ping();
-                    PingReply reply = ping.Send(address, 5000);
-                    if (reply.Status != IPStatus.Success)
-                    {
-                        exception = new Exception("Ping result = " + reply.Status + " (The router is off or unreachable)");
-                        return;
-                    }
+                    //using Ping ping = new Ping();
+                    //PingReply reply = ping.Send(address, 5000);
+                    //if (reply.Status != IPStatus.Success)
+                    //{
+                    //    exception = new Exception("Ping result = " + reply.Status + " (The router is off or unreachable)");
+                    //    return;
+                    //}
                 }
                 else
                 {
