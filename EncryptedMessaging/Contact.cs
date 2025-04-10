@@ -786,10 +786,11 @@ namespace EncryptedMessaging
         /// It can be used by the client program to store the user interface of this chat
         /// </summary>
         [XmlIgnore]
+        [Obsolete("This property is obsolete and will be removed in future versions.")]
         public object MessageContainerUI { get; set; }
 
         /// <summary>
-        /// Get thr QR code string for the context.
+        /// Get QR code string for the context.
         /// </summary>
         /// <returns></returns>
         public string GetQrCode() => ContactMessage.GetQrCode(this, Context);
