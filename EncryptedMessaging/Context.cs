@@ -421,12 +421,15 @@ namespace EncryptedMessaging
                 {
 
                     // If state hasn't changed, exit early
-                    if (CurrentConnectivity[connectivityType] == connectivity)
-                        return;
-
-                    // Update connectivity state
-                    CurrentConnectivity[connectivityType] = connectivity;
-
+                    //if (CurrentConnectivity[connectivityType] == connectivity)
+                    //    return;
+                    bool isChanged = false;
+                    if (CurrentConnectivity[connectivityType] != connectivity)
+                    {
+                        // Update connectivity state
+                        CurrentConnectivity[connectivityType] = connectivity;
+                        isChanged = true;
+                    }
                     // Set access properties based on connection type
                     if (connectivityType == ConnectivityType.Pipe)
                     {
@@ -437,7 +440,8 @@ namespace EncryptedMessaging
                         InternetAccess = connectivity && CheckRealInternetConnectivity();
                         InstancedTimeUtc = DateTime.UtcNow;
                     }
-
+                    if (!isChanged)
+                        return;
                     // Notify all affected context instances
                     NotifyContexts(connectivityType, connectivity);
                 }
