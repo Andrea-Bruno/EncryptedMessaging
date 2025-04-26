@@ -222,7 +222,7 @@ namespace CommunicationChannel.DataIO
                     ConnectionRunning = false;
                     return false;
                 }
-                if (!IsConnected() && InternetAccess)
+                if (!IsConnected() && Channel.Connectivity)
                 {
                     StartLinger(out var exception);
                     if (exception != null)
@@ -579,7 +579,7 @@ namespace CommunicationChannel.DataIO
         /// <returns></returns>
         public bool IsConnected()
         {
-            return Client != null && Client.IsConnected && InternetAccess; //According to the specifications, the property _client.Connected returns the connection status based on the last data transmission. The server may not be connected even if this property returns true
+            return Client != null && Client.IsConnected && Channel.Connectivity; //According to the specifications, the property _client.Connected returns the connection status based on the last data transmission. The server may not be connected even if this property returns true
         }
     }
 }

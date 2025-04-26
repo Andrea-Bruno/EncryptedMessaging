@@ -336,8 +336,9 @@ namespace CommunicationChannel
         //=================================================================================================
 
         private bool _Connectivity = false;
-        private bool Connectivity
+        internal bool Connectivity
         {
+            get => _Connectivity;
             set
             {
                 if (_Connectivity != value)
