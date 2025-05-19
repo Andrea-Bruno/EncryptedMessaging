@@ -35,7 +35,7 @@ namespace CommunicationChannel.DataIO
         }
 
         internal readonly Channel Channel;
-        private const int MaxDataLength = 16000000; //16 MB - max data length enable to received the server
+        internal const int MaxDataLength = 16000000; //16 MB - max data length enable to received the server
         internal IDataConnection Client;
 
         /// <summary>
@@ -155,10 +155,10 @@ namespace CommunicationChannel.DataIO
                                     Channel.LicenseExpired = true;
                                     Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + " Unable to connect to router:");
                                     Console.WriteLine("Has the license expired?");
-                                    Console.WriteLine("The router is offline?");
+                                    Console.WriteLine("The router is off-line?");
                                 }
 #if DEBUG && !TEST
-                                Debugger.Break(); // Timeout! license expired or router offline
+                                Debugger.Break(); // Timeout! license expired or router off-line
 #endif
                                 OnSendCompleted(data, flag, new Exception("Confirmation time-out"), true);
                                 Disconnect();
@@ -170,16 +170,13 @@ namespace CommunicationChannel.DataIO
                             {
                                 if (executeOnConfirmReceipt != null)
                                 {
-                                    new Thread(() => { executeOnConfirmReceipt.Invoke(); }).Start();
+                                    Task.Run(() => executeOnConfirmReceipt.Invoke());
                                 }
-
                                 OnSendCompleted(data, flag, null, false);
                             }
 
                             if (command != Protocol.Command.Ping)
                                 ResumeAutoDisconnectTimer();
-                            if (Logged)
-                                Channel.Spooler.SendNext(); // Upon receipt confirmation, sends the next message
                         }
                         catch (Exception ex)
                         {
@@ -192,7 +189,7 @@ namespace CommunicationChannel.DataIO
         }
 
         /// <summary>
-        /// On send completed it remove the sent packet and insert in the spooler queue before closing the communication channnel.
+        /// On send completed it remove the sent packet and insert in the spooler queue before closing the communication channel.
         /// </summary>
         /// <param name="data">data</param>
         /// <param name="flag">Indicates some settings that the server/router will have to interpret</param>
@@ -201,7 +198,10 @@ namespace CommunicationChannel.DataIO
         private void OnSendCompleted(byte[] data, DataFlags flag, Exception ex, bool connectionIsLost)
         {
             if (ex != null)
+            {
+                Debugger.Break();
                 Channel.DataIO.InvokeError(connectionIsLost ? ErrorType.LostConnection : ErrorType.SendDataError, ex.Message);
+            }
             if (flag == DataFlags.None)
                 Channel.Spooler.OnSendCompleted(data, connectionIsLost);
         }
@@ -270,6 +270,7 @@ namespace CommunicationChannel.DataIO
                 Thread.Sleep(LoginSleepTime); // Without a pause the sent data will not be received and the first time login will fail.
                 Logged = true;
                 Channel.ConnectionChange(true);
+                Channel.Spooler.SendNext();
             }
 
             ;
@@ -503,8 +504,10 @@ namespace CommunicationChannel.DataIO
                     }
 
                     Channel.LastIN = DateTime.UtcNow;
+#if !DEBUG || TEST
                     if (DateTime.UtcNow >= timeOutAt)
                         throw new Exception("Data read timeout");
+#endif
                 }
 
                 Debug.WriteLine("End download" + lengthIncomingData);

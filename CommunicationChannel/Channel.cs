@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Diagnostics;
 using System.IO.IsolatedStorage;
+using System.Runtime.InteropServices;
 using System.Threading;
 using static CommunicationChannel.CommandsForServer;
 
@@ -133,7 +135,7 @@ namespace CommunicationChannel
         /// <summary>
         /// Indicates the type of connection that is established with the router (this depends on the entry point specified)
         /// </summary>
-        public ConnectivityType TypeOfConnection => ServerUri.Scheme.Equals(nameof(ConnectivityType.Pipe), StringComparison.OrdinalIgnoreCase ) ? ConnectivityType.Pipe : Channel.ConnectivityType.Internet;
+        public ConnectivityType TypeOfConnection => ServerUri.Scheme.Equals(nameof(ConnectivityType.Pipe), StringComparison.OrdinalIgnoreCase) ? ConnectivityType.Pipe : Channel.ConnectivityType.Internet;
 
         /// <summary>
         /// Server domain id.
@@ -430,9 +432,12 @@ namespace CommunicationChannel
                     {
                         var len = Converter.BytesToInt(data.Skip(p).Take(4));
                         p += 4;
-                        if (len + p > data.Length)
+                        if (len < 0 || len + p > data.Length)
                         {
                             //Unexpected data length
+#if DEBUG && !TEST
+                            Debugger.Break();
+#endif
                             return false;
                         }
                         var post = new byte[len];
