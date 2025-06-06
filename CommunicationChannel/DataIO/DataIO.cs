@@ -1,10 +1,11 @@
 ﻿using CommunicationChannel.DataConnection;
 using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +33,8 @@ namespace CommunicationChannel.DataIO
                 Client = new NamedPipeClientConnection();
             else
                 Client = new TcpClientConnection();
+
+
         }
 
         internal readonly Channel Channel;
@@ -39,7 +42,7 @@ namespace CommunicationChannel.DataIO
         internal IDataConnection Client;
 
         /// <summary>
-        /// Send the data, which will be parked in the spooler, cannot be forwarded immediately: If there is a queue or if there is no internet line the data will be parked.
+        /// Send the data, which will be parked in the spooler, cannot be forwarded immediately: If there is a queue or if there is no Internet line the data will be parked.
         /// </summary>
         /// <param name="data">Data to be sent</param>
         public void SendData(byte[] data)
@@ -52,6 +55,8 @@ namespace CommunicationChannel.DataIO
         private const double LimitMbps = 0.01;
         internal AutoResetEvent WaitConfirmationSemaphore = new AutoResetEvent(false);
 
+        private ConcurrentQueue<(byte[], Action, DataFlags)> _sendQueue = new ConcurrentQueue<(byte[], Action, DataFlags)>();
+        private int _sendingData = 0;
         /// <summary>
         /// Send data to server (router) without going through the spooler
         /// </summary>
@@ -59,6 +64,63 @@ namespace CommunicationChannel.DataIO
         /// <param name="executeOnConfirmReceipt">Action to be taken when the router has successfully received the data sent</param>
         /// <param name="flag">Indicates some settings that the server/router will have to interpret</param>
         internal void ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, DataFlags flag = DataFlags.None)
+        {
+            if (true)
+            {
+                lock (_sendQueue)
+                {
+                    _ExecuteSendData(data, executeOnConfirmReceipt, flag);
+                }
+                return;
+            }
+            else
+            {
+#if DEBUG && !TEST
+                if (_sendQueue.Count > 100)
+                    Debugger.Break(); // Queue is too big, investigate why!
+#endif
+                _sendQueue.Enqueue((data, executeOnConfirmReceipt, flag));
+                ProcessSendQueue();
+            }
+        }
+
+        private void ProcessSendQueue()
+        {
+            if (Interlocked.CompareExchange(ref _sendingData, 1, 0) != 0)
+                return;
+            Task.Run(() =>
+            {
+                try
+                {
+                    while (_sendQueue.TryDequeue(out var item))
+                    {
+                        try
+                        {
+
+
+                            // eliminate - prova per federe se risolve il problema di chiusura inaspettata della applicazione.
+
+                            Thread.Sleep(100); // Give time to the spooler to send data, if it is not empty
+
+                            var data = item.Item1;
+                            var executeOnConfirmReceipt = item.Item2;
+                            var flag = item.Item3;
+                            _ExecuteSendData(data, executeOnConfirmReceipt, flag);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debugger.Break();
+                        }
+                    }
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _sendingData, 0);
+                }
+            });
+        }
+
+        private void _ExecuteSendData(byte[] data, Action executeOnConfirmReceipt = null, DataFlags flag = DataFlags.None)
         {
             var dataLength = data.Length;
             if (!Logged)
@@ -88,105 +150,99 @@ namespace CommunicationChannel.DataIO
                     }
                 }
             }
-
-            Task.Run(() =>
+            if (dataLength > MaxDataLength)
             {
-                lock (this)
+                OnSendCompleted(data, flag, new Exception("Data length over the allowed limit"), false);
+                return;
+            }
+
+            if (!IsConnected())
+            {
+                OnSendCompleted(data, flag, new Exception("Not connected"), true);
+            }
+            else
+            {
+                var command = (Protocol.Command)data[0];
+                Channel.LastCommandOUT = command;
+                if (command != Protocol.Command.Ping)
+                    SuspendAutoDisconnectTimer();
+                var waitConfirmation = flag == DataFlags.None && command != Protocol.Command.DataReceivedConfirmation;
+                var written = 0;
+                var mbps = 0d;
+                try
                 {
-                    if (dataLength > MaxDataLength)
+                    var stream = Client.GetStream();
+                    uint bit32 = flag == DataFlags.DirectlyWithoutSpooler ? 0b10000000_00000000_00000000_00000000U : 0;
+                    uint bit31 = flag == DataFlags.RouterData ? 0b01000000_00000000_00000000_00000000U : 0;
+                    if (waitConfirmation)
+                        WaitConfirmationSemaphore.Reset();
+                    var timeoutMs = DataTimeout(dataLength);
+#if DEBUG && !TEST
+                    timeoutMs = Timeout.Infinite;
+#endif
+                    if (stream.CanTimeout)
                     {
-                        OnSendCompleted(data, flag, new Exception("Data length over the allowed limit"), false);
+                        stream.WriteTimeout = timeoutMs;
+                        UpdateUploadSpeed?.Invoke(0, 0, data.Length);
+                    }
+
+                    stream.Write(((uint)dataLength | bit32 | bit31).GetBytes(), 0, 4);
+                    var watch = Stopwatch.StartNew();
+                    Channel.LastOUT = DateTime.UtcNow;
+                    while (written < data.Length)
+                    {
+                        var toWrite = data.Length - written;
+                        if (toWrite > 65536) // limit a block to 64k to show progress bar by event UpdateDownloadSpeed
+                            toWrite = 65536;
+                        stream.Write(data, written, toWrite);
+                        written += toWrite;
+                        mbps = Math.Round((written / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
+                        if (stream.CanTimeout) // exclude pipe or similar
+                            UpdateUploadSpeed?.Invoke(mbps, written, data.Length);
+                        Channel.LastOUT = DateTime.UtcNow;
+                        Debug.WriteLine("upload " + written + "\\" + data.Length + " " + mbps + "mbps" + (written == data.Length ? " completed" : ""));
+                    }
+
+                    stream.Flush();
+                    if (waitConfirmation && !WaitConfirmationSemaphore.WaitOne(timeoutMs))
+                    {
+                        // Timeout!
+                        if (command == Protocol.Command.ConnectionEstablished)
+                        {
+                            Channel.LicenseExpired = true;
+                            Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + " Unable to connect to router:");
+                            Console.WriteLine("Has the license expired?");
+                            Console.WriteLine("The router is off-line?");
+                        }
+#if DEBUG && !TEST
+                        Debugger.Break(); // Timeout! license expired or router off-line
+#endif
+                        OnSendCompleted(data, flag, new Exception("Confirmation time-out"), true);
+                        Disconnect();
                         return;
                     }
 
-                    if (!IsConnected())
+                    // confirmation received                              
+                    if (waitConfirmation)
                     {
-                        OnSendCompleted(data, flag, new Exception("Not connected"), true);
-                    }
-                    else
-                    {
-                        var command = (Protocol.Command)data[0];
-                        Channel.LastCommandOUT = command;
-                        if (command != Protocol.Command.Ping)
-                            SuspendAutoDisconnectTimer();
-                        var waitConfirmation = flag == DataFlags.None && command != Protocol.Command.DataReceivedConfirmation;
-                        var written = 0;
-                        var mbps = 0d;
-                        try
+                        if (executeOnConfirmReceipt != null)
                         {
-                            var stream = Client.GetStream();
-                            uint bit32 = flag == DataFlags.DirectlyWithoutSpooler ? 0b10000000_00000000_00000000_00000000U : 0;
-                            uint bit31 = flag == DataFlags.RouterData ? 0b01000000_00000000_00000000_00000000U : 0;
-                            if (waitConfirmation)
-                                WaitConfirmationSemaphore.Reset();
-                            var timeoutMs = DataTimeout(dataLength);
-#if DEBUG && !TEST
-                            timeoutMs = Timeout.Infinite;
-#endif
-                            if (stream.CanTimeout)
-                            {
-                                stream.WriteTimeout = timeoutMs;
-                                UpdateUploadSpeed?.Invoke(0, 0, data.Length);
-                            }
-
-                            stream.Write(((uint)dataLength | bit32 | bit31).GetBytes(), 0, 4);
-                            var watch = Stopwatch.StartNew();
-                            Channel.LastOUT = DateTime.UtcNow;
-                            while (written < data.Length)
-                            {
-                                var toWrite = data.Length - written;
-                                if (toWrite > 65536) // limit a block to 64k to show progress bar by event UpdateDownloadSpeed
-                                    toWrite = 65536;
-                                stream.Write(data, written, toWrite);
-                                written += toWrite;
-                                mbps = Math.Round((written / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
-                                if (stream.CanTimeout) // exclude pipe or similar
-                                    UpdateUploadSpeed?.Invoke(mbps, written, data.Length);
-                                Channel.LastOUT = DateTime.UtcNow;
-                                Debug.WriteLine("upload " + written + "\\" + data.Length + " " + mbps + "mbps" + (written == data.Length ? " completed" : ""));
-                            }
-
-                            stream.Flush();
-                            if (waitConfirmation && !WaitConfirmationSemaphore.WaitOne(timeoutMs))
-                            {
-                                // Timeout!
-                                if (command == Protocol.Command.ConnectionEstablished)
-                                {
-                                    Channel.LicenseExpired = true;
-                                    Console.WriteLine(DateTime.UtcNow.ToString("G") + " Client id " + Channel.MyId + " Unable to connect to router:");
-                                    Console.WriteLine("Has the license expired?");
-                                    Console.WriteLine("The router is off-line?");
-                                }
-#if DEBUG && !TEST
-                                Debugger.Break(); // Timeout! license expired or router off-line
-#endif
-                                OnSendCompleted(data, flag, new Exception("Confirmation time-out"), true);
-                                Disconnect();
-                                return;
-                            }
-
-                            // confirmation received                              
-                            if (waitConfirmation)
-                            {
-                                if (executeOnConfirmReceipt != null)
-                                {
-                                    Task.Run(() => executeOnConfirmReceipt.Invoke());
-                                }
-                                OnSendCompleted(data, flag, null, false);
-                            }
-
-                            if (command != Protocol.Command.Ping)
-                                ResumeAutoDisconnectTimer();
+                            Task.Run(() => executeOnConfirmReceipt.Invoke());
                         }
-                        catch (Exception ex)
-                        {
-                            OnSendCompleted(data, flag, ex, true);
-                            Disconnect();
-                        }
+                        OnSendCompleted(data, flag, null, false);
                     }
+
+                    if (command != Protocol.Command.Ping)
+                        ResumeAutoDisconnectTimer();
                 }
-            });
+                catch (Exception ex)
+                {
+                    OnSendCompleted(data, flag, ex, true);
+                    Disconnect();
+                }
+            }
         }
+
 
         /// <summary>
         /// On send completed it remove the sent packet and insert in the spooler queue before closing the communication channel.
@@ -199,49 +255,11 @@ namespace CommunicationChannel.DataIO
         {
             if (ex != null)
             {
-                Debugger.Break();
                 Channel.DataIO.InvokeError(connectionIsLost ? ErrorType.LostConnection : ErrorType.SendDataError, ex.Message);
             }
             if (flag == DataFlags.None)
                 Channel.Spooler.OnSendCompleted(data, connectionIsLost);
         }
-
-        /// <summary>
-        /// Establish the connection and start the spooler
-        /// </summary>
-        /// <returns>Returns true if the connection is successful, false if there is an error</returns>
-        internal bool Connect()
-        {
-            if (ConnectionRunning)
-                return false;
-            ConnectionRunning = true;
-            lock (this)
-            {
-                if (_disposed)
-                {
-                    ConnectionRunning = false;
-                    return false;
-                }
-                if (!IsConnected() && Channel.Connectivity)
-                {
-                    StartLinger(out var exception);
-                    if (exception != null)
-                    {
-                        Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
-                        Disconnect();
-                        ConnectionRunning = false;
-                        return false;
-                    }
-
-                    OnConnected();
-                    KeepAliveStart();
-                }
-
-                ConnectionRunning = false;
-                return true;
-            }
-        }
-        private bool ConnectionRunning;
 
         private bool _Logged;
 
@@ -252,7 +270,9 @@ namespace CommunicationChannel.DataIO
             {
                 _Logged = value;
                 if (value)
+                {
                     OnLogged?.Set();
+                }
             }
         }
 
@@ -262,15 +282,43 @@ namespace CommunicationChannel.DataIO
         {
             Channel.LicenseExpired = false;
             TryReconnection.Change(Timeout.Infinite, Timeout.Infinite); // Stop check if connection is lost
+
             ResumeAutoDisconnectTimer();
+
             BeginRead(Client);
 
+
+#if DEBUG && !TEST
+            var watchLogin = Stopwatch.StartNew();
+            watchLogin.Start();
+
+#endif
             void OnLogged()
             {
-                Thread.Sleep(LoginSleepTime); // Without a pause the sent data will not be received and the first time login will fail.
-                Logged = true;
-                Channel.ConnectionChange(true);
-                Channel.Spooler.SendNext();
+#if DEBUG && !TEST
+                watchLogin.Stop();
+                if (watchLogin.Elapsed.TotalMilliseconds > 500)
+                    Debugger.Break();
+#endif
+
+                // Without a pause the sent data will not be received and the first time login will fail.
+                // Thread.Sleep(LoginSleepTime);
+
+                //Logged = true;
+                //Channel.ConnectionChange(true);
+                //Channel.Spooler.SendNext();
+
+                var timer = new System.Timers.Timer(LoginSleepTime);
+                timer.Elapsed += (sender, e) =>
+                {
+                    Logged = true;
+                    Channel.ConnectionChange(true);
+                    Channel.Spooler.SendNext();
+                    timer.Dispose();
+                };
+                timer.AutoReset = false;
+                timer.Start();
+
             }
 
             ;
@@ -292,14 +340,6 @@ namespace CommunicationChannel.DataIO
                     var addresses = Dns.GetHostAddresses(Channel.ServerUri.Host).Reverse().ToArray();
                     port = Channel.ServerUri.Port;
                     address = addresses[0].ToString();
-
-                    //using Ping ping = new Ping();
-                    //PingReply reply = ping.Send(address, 5000);
-                    //if (reply.Status != IPStatus.Success)
-                    //{
-                    //    exception = new Exception("Ping result = " + reply.Status + " (The router is off or unreachable)");
-                    //    return;
-                    //}
                 }
                 else
                 {
@@ -386,64 +426,72 @@ namespace CommunicationChannel.DataIO
                 return;
             }
 
-            var first4bytes = new byte[4];
-
-            void onReadLength(IAsyncResult result)
-            {
-                var bytesRead = 0;
-                try
-                {
-                    bytesRead = stream.EndRead(result);
-                }
-                catch (Exception ex)
-                {
-                    if (ex.HResult == -2146232798)
-                        Channel.OnTcpError(ErrorType.ConnectionClosed, "The timer has closed the connection");
-                    else
-                        Channel.OnTcpError(ErrorType.LostConnection, ex.Message);
-                    Debug.WriteLine(client.IsConnected.ToString());
-                    Disconnect();
-                    return;
-                }
-
-                if (bytesRead != 4)
-                {
-                    Channel.OnTcpError(ErrorType.WrongDataLength, "BeginRead: bytesRead != 4");
-                    Disconnect();
-                    return;
-                }
-                else
-                {
-                    var firstUint = BitConverter.ToUInt32(first4bytes, 0);
-                    var dataLength = (int)(0B00111111_11111111_11111111_11111111U & firstUint);
-                    if (dataLength > MaxDataLength)
-                    {
-                        Channel.OnTcpError(ErrorType.WrongDataLength, "Data length over the allowed limit");
-                        Disconnect();
-                        return;
-                    }
-
-                    var directlyWithoutSpooler = (firstUint & 0b10000000_00000000_00000000_00000000U) != 0;
-                    var routerData = (firstUint & 0b01000000_00000000_00000000_00000000U) != 0;
-                    DataFlags flag = DataFlags.None;
-                    if (directlyWithoutSpooler)
-                        flag = DataFlags.DirectlyWithoutSpooler;
-                    else if (routerData)
-                        flag = DataFlags.RouterData;
-                    ReadBytes(dataLength, stream, flag);
-                }
-            }
 
             try
             {
+                var stateObject = Tuple.Create(stream, client);
+                Tuple<Stream, byte[], IDataConnection> state = Tuple.Create(stream, First4bytes, client);
                 if (stream.CanTimeout)
                     stream.ReadTimeout = Timeout.Infinite;
-                stream.BeginRead(first4bytes, 0, 4, onReadLength, client);
+                stream.BeginRead(First4bytes, 0, 4, OnReadLength, state);
             }
             catch (Exception ex)
             {
                 Channel.OnTcpError(ErrorType.LostConnection, ex.Message);
                 Disconnect();
+            }
+        }
+
+        private byte[] First4bytes = new byte[4];
+
+
+        void OnReadLength(IAsyncResult result)
+        {
+            var state = (Tuple<Stream, byte[], IDataConnection>)result.AsyncState;
+            var stream = state.Item1;
+            var client = state.Item3;
+
+            var bytesRead = 0;
+            try
+            {
+                bytesRead = stream.EndRead(result);
+            }
+            catch (Exception ex)
+            {
+                if (ex.HResult == -2146232798)
+                    Channel.OnTcpError(ErrorType.ConnectionClosed, "The timer has closed the connection");
+                else
+                    Channel.OnTcpError(ErrorType.LostConnection, ex.Message);
+                Debug.WriteLine(client.IsConnected.ToString());
+                Disconnect();
+                return;
+            }
+
+            if (bytesRead != 4)
+            {
+                Channel.OnTcpError(ErrorType.WrongDataLength, "BeginRead: bytesRead != 4");
+                Disconnect();
+                return;
+            }
+            else
+            {
+                var firstUint = BitConverter.ToUInt32(First4bytes, 0);
+                var dataLength = (int)(0B00111111_11111111_11111111_11111111U & firstUint);
+                if (dataLength > MaxDataLength)
+                {
+                    Channel.OnTcpError(ErrorType.WrongDataLength, "Data length over the allowed limit");
+                    Disconnect();
+                    return;
+                }
+
+                var directlyWithoutSpooler = (firstUint & 0b10000000_00000000_00000000_00000000U) != 0;
+                var routerData = (firstUint & 0b01000000_00000000_00000000_00000000U) != 0;
+                DataFlags flag = DataFlags.None;
+                if (directlyWithoutSpooler)
+                    flag = DataFlags.DirectlyWithoutSpooler;
+                else if (routerData)
+                    flag = DataFlags.RouterData;
+                ReadBytes(dataLength, stream, flag);
             }
         }
 
@@ -488,10 +536,13 @@ namespace CommunicationChannel.DataIO
                     }
 
                     readDataLen += stream.Read(data, readDataLen, partialLength); //Avoid asynchronous method to overload the operation with asynchronous mode management
-                    var mbps = Math.Round((readDataLen / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
-                    if (stream.CanTimeout) // exclude pipe or similar
+                    if (stream.CanTimeout)
+                    {
+                        // exclude pipe or similar
+                        var mbps = Math.Round((readDataLen / (watch.ElapsedMilliseconds + 1d)) / 1000, 2);
                         UpdateDownloadSpeed?.Invoke(mbps, readDataLen, lengthIncomingData);
-                    Debug.WriteLine("download " + readDataLen + "\\" + lengthIncomingData + " " + mbps + "mbps" + (readDataLen == lengthIncomingData ? " completed" : ""));
+                        // Debug.WriteLine("download " + readDataLen + "\\" + lengthIncomingData + " " + mbps + "mbps" + (readDataLen == lengthIncomingData ? " completed" : ""));
+                    }
                     if (first == true && readDataLen > 0)
                     {
                         first = false;
@@ -552,14 +603,48 @@ namespace CommunicationChannel.DataIO
         internal void InvokeError(ErrorType errorId, string description) => Channel.OnTcpError(errorId, description);
 
         /// <summary>
+        /// Establish the connection and start the spooler
+        /// </summary>
+        /// <returns>Returns true if the connection is successful, false if there is an error</returns>
+        /// <summary>
+        /// Establish the connection and start the spooler
+        /// </summary>
+        /// <returns>Returns true if the connection is successful, false if there is an error</returns>
+        internal bool Connect()
+        {
+            Exception exception = null;
+            if (antiConcurrentConnection == 0)
+            {
+                Interlocked.Increment(ref antiConcurrentConnection); // antiConcurrentConnection++;                
+                if (!_disposed && !IsConnected() && Channel.Connectivity)
+                {
+                    StartLinger(out exception);
+                    if (exception != null)
+                    {
+                        Channel.OnTcpError(ErrorType.ConnectionFailure, exception.Message);
+                    }
+                    else
+                    {
+                        OnConnected();
+                        KeepAliveStart();
+                    }
+                }
+                Interlocked.Decrement(ref antiConcurrentConnection); // antiConcurrentConnection--;       
+            }
+            if (exception != null)
+                Disconnect();
+            return exception == null;
+        }
+
+        /// <summary>
         /// Used to make a connection if the communication link breaks.
         /// </summary>
         /// <param name="tryConnectAgain"></param>
         public void Disconnect(bool tryConnectAgain = true)
         {
-            lock (this)
+            if (antiConcurrentConnection == 0)
             {
-                Debug.WriteLine("Disconnect");
+                Interlocked.Increment(ref antiConcurrentConnection); // antiConcurrentConnection++;       
                 if (Client != null) // Do not disconnect again
                 {
                     Logged = false;
@@ -570,11 +655,14 @@ namespace CommunicationChannel.DataIO
                     Client = null;
                     Channel.ConnectionChange(false);
                 }
-
+                _sendQueue.Clear();
                 if (tryConnectAgain && !_disposed)
                     TryReconnection.Change(TimerIntervalCheckConnection, Timeout.Infinite); // restart check if connection is lost
+                Interlocked.Decrement(ref antiConcurrentConnection); // antiConcurrentConnection--;       
             }
         }
+
+        int antiConcurrentConnection = 0;
 
         /// <summary>
         /// Find if the socket is connected to the remote host.
@@ -584,5 +672,7 @@ namespace CommunicationChannel.DataIO
         {
             return Client != null && Client.IsConnected && Channel.Connectivity; //According to the specifications, the property _client.Connected returns the connection status based on the last data transmission. The server may not be connected even if this property returns true
         }
+
+
     }
 }

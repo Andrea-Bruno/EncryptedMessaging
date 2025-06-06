@@ -247,17 +247,14 @@ namespace EncryptedMessaging
         {
             if (OnContactEvent != null)
                 if (!Modality.HasFlag(Modality.LoadContacts))
-                    Task.Run(() =>
-                        {
-                            try
-                            {
-                                OnContactEvent.Invoke(message);
-                            }
-                            catch (Exception ex)
-                            {
-                                Debugger.Break(); // investigate                            
-                            }
-                        });
+                    try
+                    {
+                        OnContactEvent.Invoke(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debugger.Break(); // investigate                            
+                    }
                 else
                     InvokeOnMainThread(() =>
                     {
@@ -270,8 +267,7 @@ namespace EncryptedMessaging
                             Debugger.Break(); // investigate                            
 
                         }
-                    }
-    );
+                    });
         }
         /// <summary>
         /// Event that is raised to inform when someone has read a sent message
@@ -311,14 +307,21 @@ namespace EncryptedMessaging
 
         /// <summary>
         /// thread-safe calls
-        /// https://docs.microsoft.com/en-us/dotnet/desktop/winforms/controls/how-to-make-thread-safe-calls?view=netdesktop-6.0
         /// </summary>
         /// <param name="action">trigger event</param>
         private void ThreadSafeCalls(Action action)
         {
-            var threadParameters = new ThreadStart(delegate { action.Invoke(); });
-            var thread2 = new Thread(threadParameters);
-            thread2.Start();
+#if DEBUG // In debug mode errors will stop execution at the point of error to facilitate diagnosis.
+            action.Invoke();
+#else
+            try
+            {
+                action.Invoke();
+            }
+            catch (Exception ex)
+            {
+            }
+#endif
         }
 
 #if DEBUG_A

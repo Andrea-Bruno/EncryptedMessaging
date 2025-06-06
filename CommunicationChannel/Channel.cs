@@ -1,10 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Diagnostics;
 using System.IO.IsolatedStorage;
-using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using static CommunicationChannel.CommandsForServer;
 
 namespace CommunicationChannel
@@ -137,6 +137,9 @@ namespace CommunicationChannel
         /// </summary>
         public ConnectivityType TypeOfConnection => ServerUri.Scheme.Equals(nameof(ConnectivityType.Pipe), StringComparison.OrdinalIgnoreCase) ? ConnectivityType.Pipe : Channel.ConnectivityType.Internet;
 
+        private ConcurrentQueue<(List<byte[]>, DataFlags, ulong)> _dataReceivesQueue = new ConcurrentQueue<(List<byte[]>, DataFlags, ulong)>();
+        private int _dataReceivesData = 0;
+
         /// <summary>
         /// Server domain id.
         /// </summary>
@@ -192,30 +195,76 @@ namespace CommunicationChannel
                 }
                 PostCounter++;
                 LastPostParts = posts.Count;
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    DataReceivedInprocessing++;
-                    Thread.CurrentThread.Name = nameof(DataReceivedInprocessing) + DataReceivedInprocessing;
-                    posts.ForEach(post =>
-                    {
-                        if (flag == DataFlags.None && AntiDuplicate.AlreadyReceived(post))
-                        {
-                            DuplicatePost++;
+
 #if DEBUG && !TEST
-                            Debugger.Break();
+                if (_dataReceivesQueue.Count > 20)
+                    Debugger.Break(); // Queue is too big, investigate why!
 #endif
-                        }
-                        else
-                        {
-                            OnMessageArrives?.Invoke(chatId, post);
-                        }
-                    });
-                    DataReceivedInprocessing--;
-                });
+
+                if (false)
+                {
+                    lock (_dataReceivesQueue)
+                    {
+                        _OnDataReceives(posts, flag, chatId);
+                    }
+                }
+                else
+                {
+                    _dataReceivesQueue.Enqueue((posts, flag, chatId));
+                    ProcessDataReceivesQueue();
+                }
             }
             error = null;
         }
-        internal int DataReceivedInprocessing;
+
+
+        private void ProcessDataReceivesQueue()
+        {
+            if (Interlocked.CompareExchange(ref _dataReceivesData, 1, 0) != 0)
+                return;
+            Task.Run(() =>
+            {
+                try
+                {
+                    while (_dataReceivesQueue.TryDequeue(out var item))
+                    {
+                        try
+                        {
+                            var posts = item.Item1;
+                            var flag = item.Item2;
+                            var chatId = item.Item3;
+                            _OnDataReceives(posts, flag, chatId);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debugger.Break();
+                        }
+                    }
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _dataReceivesData, 0);
+                }
+            });
+        }
+
+        private void _OnDataReceives(List<byte[]> posts, DataFlags flag, ulong chatId)
+        {
+            posts.ForEach(post =>
+            {
+                if (flag == DataFlags.None && AntiDuplicate.AlreadyReceived(post))
+                {
+                    DuplicatePost++;
+#if DEBUG && !TEST
+                    Debugger.Break();
+#endif
+                }
+                else
+                {
+                    OnMessageArrives?.Invoke(chatId, post);
+                }
+            });
+        }
 
         internal DateTime LastPingReceived;
 
@@ -232,12 +281,12 @@ namespace CommunicationChannel
 
                 if (RefreshLogError != null)
                 {
-                    System.Threading.Tasks.Task.Run(() => RefreshLogError?.Invoke(ErrorLog));
+                    Task.Run(() => RefreshLogError?.Invoke(ErrorLog));
                 }
             }
             if (OnError != null)
             {
-                System.Threading.Tasks.Task.Run(() => OnError?.Invoke(errorId, description));
+                Task.Run(() => OnError?.Invoke(errorId, description));
             }
         }
 
@@ -275,7 +324,7 @@ namespace CommunicationChannel
                 IsConnected = status;
                 if (OnRouterConnectionChange != null)
                 {
-                    System.Threading.Tasks.Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
+                    Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
                 }
             }
         }
@@ -459,6 +508,7 @@ namespace CommunicationChannel
         /// </summary>
         public void Dispose()
         {
+            _dataReceivesQueue.Clear();
             OnRouterConnectionChange = null;
             OnDataRouter = null;
             RefreshLogError = null;
