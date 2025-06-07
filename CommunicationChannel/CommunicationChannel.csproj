@@ -43,6 +43,7 @@
 	
 	<ItemGroup>
 	  <Compile Remove="Bytes.cs" />
+	  <Compile Remove="DataIO\DataIO_new.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
