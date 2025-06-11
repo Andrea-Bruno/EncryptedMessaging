@@ -14,10 +14,7 @@ namespace CommunicationChannel
             if (!_Channel.DataIO.IsConnected())
                 _Channel.DataIO.Connect();
             var data = CreateCommand(command, dataToSend, chatId, myId);
-            if (dataFlags == DataFlags.DirectlyWithoutSpooler)
-                _Channel.DataIO.ExecuteSendData(data, flag: dataFlags);  // Send directly without using the spooler
-            else
-                _Channel.DataIO.SendData(data);                                                         // Send data using the spooler
+            _Channel.DataIO.ExecuteSendData(data, flag: dataFlags);  // Send directly without using the spooler
         }
 
         /// <summary>
@@ -27,7 +24,6 @@ namespace CommunicationChannel
         {
             None = 0,
             DirectlyWithoutSpooler = 1, // Flag indicating that data will be sent directly to the recipient if connected, otherwise it will be lost
-            RouterData = 2, // Flag indicating that the data packet is destined directly for the router (these are not data that need to be routed to other devices)
         }
 
         internal byte[] CreateCommand(Protocol.Command command, byte[] dataToSend = null, ulong? chatId = null, ulong? myId = null)
@@ -67,7 +63,7 @@ namespace CommunicationChannel
         /// <param name="chatId">chat to which data belong to</param>
         /// <param name="dataToSend">data</param>
         /// <param name="directlyWithoutSpooler"> if you want to send directly without spooler make it true else false </param>
-        public void SendPostToServer(ulong chatId, byte[] dataToSend, bool directlyWithoutSpooler = false) => SendCommandToServer(Protocol.Command.SetNewPost, dataToSend, chatId, dataFlags: directlyWithoutSpooler ? DataFlags.DirectlyWithoutSpooler : DataFlags.None);
+        public void SendPostToServer(ulong chatId, byte[] dataToSend, bool directlyWithoutSpooler = false) => SendCommandToServer(Protocol.Command.Data, dataToSend, chatId, dataFlags: directlyWithoutSpooler ? DataFlags.DirectlyWithoutSpooler : DataFlags.None);
 
         /// <summary>
         /// Sends a data packet addressed to the router/server. This data packet will be interpreted by the router based on the function that is passed to the router when it is initialized. If no function is passed during initialization, sending data to the router will have no effect.
@@ -75,7 +71,7 @@ namespace CommunicationChannel
         /// <param name="dataToSend"></param>
         public void SendRouterData(byte[] dataToSend)
         {
-            SendCommandToServer(Protocol.Command.SetNewPost, dataToSend, null, dataFlags: DataFlags.RouterData);
+            SendCommandToServer(Protocol.Command.RouterData, dataToSend, null, dataFlags: DataFlags.DirectlyWithoutSpooler);
         }
 
         /// <summary>

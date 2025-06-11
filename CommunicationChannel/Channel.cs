@@ -36,7 +36,7 @@ namespace CommunicationChannel
             ConnectionTimeout = connectionTimeout;
             DataIO = new DataIO.DataIO(this);
             CommandsForRouter = new CommandsForServer(this);
-            Spooler = new Spooler(this);
+            //Spooler = new Spooler(this);
             ServerUri = new UriBuilder(serverAddress).Uri; //new Uri(serverAddress);
             if (ServerUri.Scheme.ToLower() != "pipe")
             {
@@ -102,7 +102,7 @@ namespace CommunicationChannel
         internal readonly AntiDuplicate AntiDuplicate;
         internal readonly int ConnectionTimeout = Timeout.Infinite;
         internal readonly ulong MyId;
-        internal readonly Spooler Spooler;
+        //internal readonly Spooler Spooler;
         internal readonly DataIO.DataIO DataIO;
         /// <summary>
         /// class object to use command at server-side.
@@ -137,8 +137,7 @@ namespace CommunicationChannel
         /// </summary>
         public ConnectivityType TypeOfConnection => ServerUri.Scheme.Equals(nameof(ConnectivityType.Pipe), StringComparison.OrdinalIgnoreCase) ? ConnectivityType.Pipe : Channel.ConnectivityType.Internet;
 
-        private ConcurrentQueue<(List<byte[]>, DataFlags, ulong)> _dataReceivesQueue = new ConcurrentQueue<(List<byte[]>, DataFlags, ulong)>();
-        private int _dataReceivesData = 0;
+        private ConcurrentQueue<(byte[], DataFlags, ulong)> _dataReceivesQueue = new ConcurrentQueue<(byte[], DataFlags, ulong)>();
 
         /// <summary>
         /// Server domain id.
@@ -150,12 +149,6 @@ namespace CommunicationChannel
             if (incomingData.Length == 0)
             {
                 error = Tuple.Create(ErrorType.WrongDataLength, "incomingData.Length == 0");
-                return;
-            }
-            if (flag == DataFlags.RouterData)
-            {
-                error = null;
-                OnDataRouter?.Invoke(incomingData);
                 return;
             }
             if (!Enum.IsDefined(typeof(Protocol.Command), incomingData[0]))
@@ -172,7 +165,8 @@ namespace CommunicationChannel
                     return;
                 }
                 var dataId = BitConverter.ToUInt32(incomingData, 1);
-                Spooler.OnConfirmReceipt(dataId);
+                DataIO.WaitConfirmationSemaphore.Set();
+                DataIO.ProcessSendQueue();
             }
             else if (command == Protocol.Command.Ping) // Pinging from the server does not reset the connection timeout, otherwise, if the pings occur frequently, the connection will never be closed
             {
@@ -180,7 +174,7 @@ namespace CommunicationChannel
                 DataIO.KeepAliveRefresh();
                 Debug.WriteLine("ping received!");
             }
-            else if (command == Protocol.Command.Messages)
+            else if (command == Protocol.Command.Data)
             {
                 if (flag == DataFlags.None)
                 {
@@ -188,13 +182,9 @@ namespace CommunicationChannel
                     CommandsForRouter.DataReceivedConfirmation(incomingData);
                 }
                 var chatId = Converter.BytesToUlong(incomingData.Skip(1).Take(8));
-                if (!SplitAllPosts(incomingData.Skip(9), out var posts))
-                {
-                    error = Tuple.Create(ErrorType.WrongDataLength, "SplitAllPosts");
-                    return;
-                }
+                var post = incomingData.Skip(9);
+
                 PostCounter++;
-                LastPostParts = posts.Count;
 
 #if DEBUG && !TEST
                 if (_dataReceivesQueue.Count > 20)
@@ -205,24 +195,33 @@ namespace CommunicationChannel
                 {
                     lock (_dataReceivesQueue)
                     {
-                        _OnDataReceives(posts, flag, chatId);
+                        _OnDataReceives(post, flag, chatId);
                     }
                 }
                 else
                 {
-                    _dataReceivesQueue.Enqueue((posts, flag, chatId));
+                    _dataReceivesQueue.Enqueue((post, flag, chatId));
                     ProcessDataReceivesQueue();
                 }
+            }
+            else if (command == Protocol.Command.ConnectionEstablished)
+            {
+                DataIO.OnLoggedCompleted();
+            }
+            else if (command == Protocol.Command.RouterData)
+            {
+                OnDataRouter?.Invoke(incomingData);
             }
             error = null;
         }
 
+        private Task TaskDataReceivesQueue;
 
         private void ProcessDataReceivesQueue()
         {
-            if (Interlocked.CompareExchange(ref _dataReceivesData, 1, 0) != 0)
+            if (TaskDataReceivesQueue != null || _dataReceivesQueue.Count == 0)
                 return;
-            Task.Run(() =>
+            TaskDataReceivesQueue = Task.Run(() =>
             {
                 try
                 {
@@ -243,27 +242,24 @@ namespace CommunicationChannel
                 }
                 finally
                 {
-                    Interlocked.Exchange(ref _dataReceivesData, 0);
+                    TaskDataReceivesQueue = null;
                 }
             });
         }
 
-        private void _OnDataReceives(List<byte[]> posts, DataFlags flag, ulong chatId)
+        private void _OnDataReceives(byte[] post, DataFlags flag, ulong chatId)
         {
-            posts.ForEach(post =>
+            if (flag == DataFlags.None && AntiDuplicate.AlreadyReceived(post))
             {
-                if (flag == DataFlags.None && AntiDuplicate.AlreadyReceived(post))
-                {
-                    DuplicatePost++;
+                DuplicatePost++;
 #if DEBUG && !TEST
-                    Debugger.Break();
+                Debugger.Break();
 #endif
-                }
-                else
-                {
-                    OnMessageArrives?.Invoke(chatId, post);
-                }
-            });
+            }
+            else
+            {
+                OnMessageArrives?.Invoke(chatId, post);
+            }
         }
 
         internal DateTime LastPingReceived;
@@ -296,13 +292,15 @@ namespace CommunicationChannel
         public enum ErrorType
         {
 #pragma warning disable
+            None,
             Working,
             ConnectionFailure,
             WrongDataLength,
             LostConnection,
             SendDataError,
             CommandNotSupported,
-            ConnectionClosed
+            ConnectionClosed,
+            LoginTimeout,
 #pragma warning restore
         }
         /// <summary>
@@ -360,13 +358,9 @@ namespace CommunicationChannel
         public bool Logged => DataIO.Logged;
 
         /// <summary>
-        /// Number of bytes in the queue
+        /// Number of elements in the out queue (data packets waiting to be sent)
         /// </summary>
-        public int QueueCount => Spooler.QueueCount;
-        /// <summary>
-        /// 
-        /// </summary>
-        public int LastPostParts;
+        public int QueueCount => DataIO._sendQueue.Count;
         /// <summary>
         /// Number of posts
         /// </summary>

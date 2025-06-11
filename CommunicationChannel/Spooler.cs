@@ -137,19 +137,7 @@ namespace CommunicationChannel
                 SendNext();
             }
         }
-        //internal List<Tuple<uint, Action>> ExecuteOnConfirmReceipt = new List<Tuple<uint, Action>>();
-        /// <summary>
-        /// Confirm the receipt status on the sent data before sending the next message
-        /// </summary>
-        /// <param name="dataId"> data ID</param>
-        public void OnConfirmReceipt(uint dataId)
-        {
-            // var semaphore = Channel.Tcp.WaitConfirmationSemaphore;
-            // Channel.Tcp.WaitConfirmationSemaphore = null;
-            RemovePersistent(dataId);
-            Channel.OnDataDeliveryConfirm?.Invoke(dataId);
-            Channel.DataIO.WaitConfirmationSemaphore.Set();
-        }
+
 #if DEBUG && !TEST
         private readonly List<long> _sent = new List<long>();
 #endif

@@ -11,25 +11,25 @@
 		public enum Command : byte
 		{
 			/// <summary>
-			/// 0 represents that connection is established
+			/// Represents that connection is established
 			/// </summary>
 			ConnectionEstablished = 0,
 			/// <summary>
-			/// 1 represents that data is received by server
+			/// Represents that data is received by server
 			/// </summary>
 			DataReceivedConfirmation = 1,
 			/// <summary>
-			/// 2 represents that server is pinged
+			/// Represents that server is pinged
 			/// </summary>
 			Ping = 2,
             /// <summary>
-            /// 3 send the router a message for another client, or a data packet to the router if indicated by the appropriate flags
+            /// It is a packet of data to be addressed to a client
             /// </summary>
-            SetNewPost = 3,
+            Data = 3,
             /// <summary>
-            /// 4 represents messages of another client arriving from the router
+            /// Represents that data is sent to the router/server
             /// </summary>
-            Messages = 4,
-		}
-	}
+            RouterData = 4,
+        }
+    }
 }

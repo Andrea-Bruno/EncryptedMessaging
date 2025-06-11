@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using static CommunicationChannel.Channel;
 
 namespace CommunicationChannel.DataIO
 {
