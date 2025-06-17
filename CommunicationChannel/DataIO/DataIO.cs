@@ -42,14 +42,14 @@ namespace CommunicationChannel.DataIO
         internal const int MaxDataLength = 16000000; //16 MB - max data length enable to received the server
         internal IDataConnection Client;
 
-        /// <summary>
-        /// Send the data, which will be parked in the spooler, cannot be forwarded immediately: If there is a queue or if there is no Internet line the data will be parked.
-        /// </summary>
-        /// <param name="data">Data to be sent</param>
-        public void SendData(byte[] data)
-        {
-            Channel.DataIO.ExecuteSendData(data);
-        }
+        ///// <summary>
+        ///// Send the data, which will be parked in the spooler, cannot be forwarded immediately: If there is a queue or if there is no Internet line the data will be parked.
+        ///// </summary>
+        ///// <param name="data">Data to be sent</param>
+        //public void SendData(byte[] data)
+        //{
+        //    Channel.DataIO.ExecuteSendData(data);
+        //}
 
         // private const int TimeOutMs = 10000; // Default value
         private const int TimeOutMs = TimerIntervalCheckConnection - 1000; // Experimental value: Some time cannot connect, I have increase this value

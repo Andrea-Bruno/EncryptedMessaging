@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -11,7 +12,7 @@ using CommunicationChannel;
 using SecureStorage;
 using static CommunicationChannel.Channel;
 // Our mission is to exacerbate the concept of security in messaging and create something conceptually new and innovative from a technical point of view.
-// Top-level encrypted communication (there is no backend , there is no server-side contact list, there is no server but a simple router, the theory is that if the server does not exist then the server cannot be hacked, the communication is anonymous, the IDs are derived from a hash of the public keys, therefore in no case it is possible to trace who originates the messages, the encryption key is changed for each single message, and a system of digital signatures guarantees the origin of the messages and prevents attacks "men in de middle").
+// Top-level encrypted communication (there is no back-end , there is no server-side contact list, there is no server but a simple router, the theory is that if the server does not exist then the server cannot be hacked, the communication is anonymous, the IDs are derived from a hash of the public keys, therefore in no case it is possible to trace who originates the messages, the encryption key is changed for each single message, and a system of digital signatures guarantees the origin of the messages and prevents attacks "men in de middle").
 // We use different concepts introduced with Bitcoin technology and the library itself: there are no accounts, the account is simply a pair of public and private keys, groups are also supported, the group ID is derived from a hash computed through the public keys of the members, since the hash process is irreversible, the level of anonymity is maximum).
 // The publication of the source wants to demonstrate the genuineness of the concepts we have adopted! Thanks for your attention!
 namespace EncryptedMessaging
@@ -41,11 +42,11 @@ namespace EncryptedMessaging
         /// </summary>
         RemoveUnusedContacts = 8,
         /// <summary>
-        /// This is the preconfigured mode to function as a Client
+        /// This is the default mode to work as a Client.
         /// </summary>
         Client = SaveContacts | LoadContacts,
         /// <summary>
-        /// This is the preconfigured mode to function as a Server
+        /// This is the default mode to work as a Server.
         /// </summary>
         Server = StayConnected | RemoveUnusedContacts,
     }
@@ -163,17 +164,33 @@ namespace EncryptedMessaging
             if (licenseActivator != null)
                 license = new Tuple<ulong, Func<byte[], byte[]>>(licenseActivator.IdOEM, licenseActivator.SignLogin);
             // *1* // If you change this value, it must also be changed on the server	
-            Channel = new Channel(entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, license, ExecuteOnErrorChannel)
+
+            if (DataChannel.MemoryDataChannel.IsAvailable)
             {
-                OnRouterConnectionChange = InvokeOnRouterConnectionChange
-            };
+                Channel = new DataChannel.MemoryDataChannel(NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, ExecuteOnErrorChannel);
+            }
+            else if (UsePullPushDataChannel && !entryPoint.StartsWith("pipe:"))
+            {
+                Channel = new DataChannel.PushPullDataChannel(connectivity, entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, license, ExecuteOnErrorChannel);
+            }
+            else
+            {
+                Channel = new Channel(connectivity, entryPoint, NetworkId, Messaging.ExecuteOnDataArrival, Messaging.OnDataDeliveryConfirm, My.Id, modality.HasFlag(Modality.StayConnected) ? Timeout.Infinite : 120 * 1000, license, ExecuteOnErrorChannel);
+            }
+            var isConnected = Channel.IsConnected; // If true: These are channels already connected with the initialization, such as MemoryDataChannel (this still allows to create the connection established event for compatibility with the other channels)
+            Channel.OnRouterConnectionChange = InvokeOnRouterConnectionChange;
             IsRestored = !string.IsNullOrEmpty(privateKeyOrPassphrase);
             if (!IsDisposed)
                 ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
+            if (isConnected)
+                ThreadPool.QueueUserWorkItem((_) => InvokeOnRouterConnectionChange(true));
         }
 
-
-        public Action<byte[]> OnDataRouter { set { Channel.OnDataRouter = value; } }
+        /// <summary>
+        /// The unique identifier of the network, it is used to identify the network in which the client is connected.
+        /// </summary>
+        static public bool UsePullPushDataChannel { get; set; } = false;
+        public Action<byte[]> OnDataRouter { set { Channel.OnDataRouterReceived = value; } }
 
         public bool LicenseExpired { get { return Channel != null && Channel.LicenseExpired; } }
 
@@ -514,7 +531,7 @@ namespace EncryptedMessaging
         /// Server mode is the exclusive mode for working without saving posts to the repositories. This is how server applications must be initialized. This property returns the status of the server mode.
         /// </summary>
         public Modality Modality { get; }
-        internal static readonly int DefaultServerSessionTimeoutMs = (int)new TimeSpan(0, 20, 0).TotalMilliseconds;
+        internal static readonly int DefaultServerSessionTimeoutMs = (int)TimeSpan.FromMinutes(20).TotalMilliseconds;
         /// <summary>
         /// Session timeout in milliseconds
         /// </summary>
@@ -534,11 +551,10 @@ namespace EncryptedMessaging
         // Through this we can program an action that is triggered when a message arrives from a certain chat id
 
         internal readonly int NetworkId;
-        [Obsolete("Do not use this object externally, its public access will be removed in the future!")]
         /// <summary>
         /// Provides access to the library instance for transporting data between devices and packet routing routers
         /// </summary>
-        public readonly Channel Channel;
+        internal readonly IChannel Channel;
         /// <summary>
         /// The latest reception on the data channel (utc)
         /// </summary>
@@ -555,19 +571,14 @@ namespace EncryptedMessaging
         /// The last protocol command transmission on the data channel
         /// </summary>
         public Protocol.Command LastCommandOUT => Channel.LastCommandOUT;
-        /// <summary>
-        /// The last time KeepAlive was performed for checking the data communication channel (Utc)
-        /// </summary>
-        public DateTime LastKeepAliveCheck => Channel.LastKeepAliveCheck;
 
-        /// <summary>
-        /// Number of failure connection
-        /// </summary>
-        public ulong KeepAliveFailures => Channel.KeepAliveFailures;
         /// <summary>
         /// Returns the current status of the connection with the router/server
         /// </summary>
         public bool IsConnected => Channel != null && Channel.IsConnected;
+
+        public bool HasConnectivity => Channel != null && Channel?.HasConnectivity == true;
+
         /// <summary>
         /// Function that reactivates the connection when it is lost. Its use is designed for all those situations in which the connection could be interrupted, for example mobile applications can interrupt the connection when they are placed in the background. When the application returns to the foreground it is advisable to call this comondo to reactivate the connection.      
         /// If this method is not called, the mobile application returns to the foreground, it could stop working and stop receiving messages, while notifications could arrive anyway if routed with Firebase or other external services.
@@ -577,7 +588,7 @@ namespace EncryptedMessaging
         {
             if (iMSureThereIsConnection)
                 Functions.TrySwitchOnInternetConnectivity();
-            Channel.ReEstablishConnection();
+            Contexts.FirstOrDefault()?.Channel?.ReEstablishConnection();
         }
 
         /// <summary>

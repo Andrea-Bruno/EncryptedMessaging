@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -71,12 +73,34 @@ namespace EncryptedMessaging
             }
         }
 
+
+
+        private ConcurrentQueue<(ulong chatId, byte[] data)> QueueOfdataToExecute = new ConcurrentQueue<(ulong, byte[])>();
+        private Task ProcessDataToExecuteTask;
         /// <summary>
-        /// Internal function that is executed every time data is received from the router. The router acts as a hub by forwarding data packets to the legitimate recipient.
+        /// Internal function that spools and executes any data that comes from the router.. The router acts as a hub by forwarding data packets to the legitimate recipient.
         /// </summary>
         /// <param name="chatId">The conversation group in which the message was generated</param>
         /// <param name="data">The data in raw format sent to the group (data yet to be interpreted, decrypted and validated)</param>
         internal void ExecuteOnDataArrival(ulong chatId, byte[] data)
+        {
+            QueueOfdataToExecute.Enqueue((chatId, data));
+            lock (QueueOfdataToExecute)
+            {
+                if (ProcessDataToExecuteTask == null || ProcessDataToExecuteTask.IsCompleted)
+                {
+                    ProcessDataToExecuteTask = Task.Run(() =>
+                    {
+                        while (QueueOfdataToExecute.TryDequeue(out var item))
+                        {
+                            _ExecuteOnDataArrival(item.chatId, item.data);
+                        }
+                    });
+                }
+            }
+        }
+
+        private void _ExecuteOnDataArrival(ulong chatId, byte[] data)
         {
             lock (this)
             {
@@ -118,6 +142,12 @@ namespace EncryptedMessaging
                         }
                     }
                 }
+#if DEBUG
+                else
+                {
+                    Debugger.Break(); // The message received is not valid, it is not possible to read the data
+                }
+#endif
             }
         }
         /// <summary>
@@ -339,7 +369,7 @@ namespace EncryptedMessaging
                 @params.ToContact.Save();
                 ShowMessage(message, true);
             }
-            Context.Channel.CommandsForRouter.SendPostToServer(@params.ToContact != null ? @params.ToContact.ChatId : (ulong)@params.ChatId, dataPost, @params.DirectlyWithoutSpooler);
+            Context.Channel.SendPostToServer(@params.ToContact != null ? @params.ToContact.ChatId : (ulong)@params.ChatId, dataPost, @params.DirectlyWithoutSpooler);
         }
         private bool AlreadyTrySwitchOnConnectivity;
         //private bool AntiRecursive; // Avoid the recursive loop
@@ -351,7 +381,7 @@ namespace EncryptedMessaging
         /// <param name="data">The data that is directed to the router. Their interpretation depends on the algorithm passed during router initialization. This data will not be encrypted. If you want to obfuscate the data, it should be encrypted before passing it to the function and decrypted at the router side upon receipt.</param>
         public void SendRouterData(byte[] data)
         {
-            Context.Channel.CommandsForRouter.SendRouterData(data);
+            Context.Channel.SendRouterData(data);
         }
 
         internal void DeleteMessage(ulong postId, Contact toContact)
@@ -531,7 +561,7 @@ namespace EncryptedMessaging
         public void LoginToServer(bool directlyWithoutSpooler, Contact onServer)
         {
             var now = DateTime.UtcNow;
-            if ((now - onServer.ServerLoggedTime) >= TimeSpan.FromMilliseconds(Context.DefaultServerSessionTimeoutMs).Add(-new TimeSpan(0, 1, 0)))
+            if ((now - onServer.ServerLoggedTime) >= TimeSpan.FromMilliseconds(Context.DefaultServerSessionTimeoutMs).Add(-TimeSpan.FromMinutes(1)))
             {
                 SendContact(Context.My.Contact, onServer, directlyWithoutSpooler, isLogin: true);
                 onServer.ServerLoggedTime = now;
@@ -547,18 +577,19 @@ namespace EncryptedMessaging
         public void SendAudio(byte[] mp3, Contact toContact, ulong? replyToPostId = null) => SendMessage(MessageType.Audio, mp3, toContact, replyToPostId);
 
         /// <summary>
-        /// The only type of audio file allowed is mp3, with a speed of 64 k bps or lower.
+        /// Send a contact to another contact.
         /// </summary>
-        /// <param name="contact">mp3 64 kbps file</param>
+        /// <param name="contact">Contact to send</param>
         /// <param name="toContact">The recipient</param>
         /// <param name="directlyWithoutSpooler"></param>
         /// <param name="purposeIsUpdateOnly"></param>
         /// <param name="isLogin">Flag used only for the login command to avoid a recursive loop</param>
         public void SendContact(Contact contact, Contact toContact, bool directlyWithoutSpooler = false, bool purposeIsUpdateOnly = false, bool isLogin = false)
         {
-            var data = ContactMessage.GetDataMessageContact(contact, Context, purposeIsUpdateOnly: purposeIsUpdateOnly);
-            SendMessage(MessageType.Contact, data, toContact, null, null, null, directlyWithoutSpooler, isLogin: isLogin);
+                var data = ContactMessage.GetDataMessageContact(contact, Context, purposeIsUpdateOnly: purposeIsUpdateOnly);
+                SendMessage(MessageType.Contact, data, toContact, null, null, null, directlyWithoutSpooler, isLogin: isLogin);
         }
+
 
         /// <summary>
         /// // I send the name with which the contract is registered in my address book, so I can have notifications with the name used locally in my contacts

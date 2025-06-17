@@ -12,10 +12,10 @@ namespace CommunicationChannel
     /// <summary>
     /// This class handle all the communication channel operation with server-side.
     /// </summary>
-    public class Channel : IDisposable
+    public class Channel : IDisposable, IChannel
     {
         /// <summary>
-        /// Initialize the library
+        /// Create a new instance
         /// </summary>
         /// <param name="serverAddress">Server Address</param>
         /// <param name="domain">A domain (also known as Network Id) corresponds to a membership group. Using the domain it is possible to divide the traffic on a server into TestNet, MainNet group (in order to isolate the message circuit within a given domain).</param>
@@ -25,19 +25,17 @@ namespace CommunicationChannel
         /// <param name="connectionTimeout">Used to remove the connection when not in use. However, mobile systems remove the connection when the application is in the background so it makes no sense to try to keep the connection always open. This also lightens the number of simultaneous server-side connections.</param>
         /// <param name="licenseActivator">OEM ID (ulong) and algorithm for the digital signature of the license activation. If present, this function will be called to digitally sign at the time of authentication. The digital signature must be put by the OEM who must have the activation licenses. The router will check if the license is valid upon connection.</param>
         /// <param name="onError">It is used as an event to handle the reporting of errors to the host. If set in the initialization phase, this delegate will be called at each data IO error (TCP, Pipe, etc..), to notify the type of error and its description</param>
-        public Channel(string serverAddress, int domain, Action<ulong, byte[]> onMessageArrives, Action<uint> onDataDeliveryConfirm, ulong myId, int connectionTimeout = Timeout.Infinite, Tuple<ulong, Func<byte[], byte[]>> licenseActivator = null, OnErrorEvent onError = null)
+        public Channel(bool? hasConnectivity, string serverAddress, int domain, Action<ulong, byte[]> onMessageArrives, Action<uint> onDataDeliveryConfirm, ulong myId, int connectionTimeout = Timeout.Infinite, Tuple<ulong, Func<byte[], byte[]>> licenseActivator = null, OnErrorEvent onError = null)
         {
             AntiDuplicate = new AntiDuplicate(myId);
             OnError = onError;
             LicenseActivator = licenseActivator;
             MyId = myId;
             Domain = domain;
-            //ContextIsReady = contextIsReady;
             ConnectionTimeout = connectionTimeout;
             DataIO = new DataIO.DataIO(this);
             CommandsForRouter = new CommandsForServer(this);
-            //Spooler = new Spooler(this);
-            ServerUri = new UriBuilder(serverAddress).Uri; //new Uri(serverAddress);
+            ServerUri = new UriBuilder(serverAddress).Uri;
             if (ServerUri.Scheme.ToLower() != "pipe")
             {
                 if (!serverAddress.EndsWith(":80") && ServerUri.Port == 80)
@@ -45,13 +43,55 @@ namespace CommunicationChannel
                     ServerUri = new UriBuilder(ServerUri) { Port = 5222 }.Uri;
                 }
             }
-
-            OnMessageArrives = onMessageArrives;
+            OnMessageReceived = onMessageArrives;
             OnDataDeliveryConfirm = onDataDeliveryConfirm;
             lock (Channels)
             {
                 Channels.Add(this);
             }
+            HasConnectivity = hasConnectivity ?? true; // If not specified, assume connectivity is available by default
+
+            InternetAccess = true;
+
+        }
+
+        /// <summary>
+        /// Indicates whether the channel has connectivity. This property is used to determine if the channel can establish connections and communicate with the router.
+        /// </summary>
+        public bool HasConnectivity
+        {
+            get
+            {
+                if (ServerUri.Scheme.StartsWith("pipe"))
+                    return PipeAccess;
+                else
+                    return InternetAccess;
+            }
+            internal set
+            {
+                if (ServerUri.Scheme.StartsWith("pipe"))
+                    PipeAccess = value;
+                else
+                    InternetAccess = value;
+            }
+        }
+
+        /// <summary>
+        /// Send data to the server/router.
+        /// Sends a data packet that the server/router will resend to its destination.
+        /// </summary>
+        /// <param name="chatId">chat to which data belong to</param>
+        /// <param name="dataToSend">data</param>
+        /// <param name="directlyWithoutSpooler"> if you want to send directly without spooler make it true else false </param>
+        public void SendPostToServer(ulong chatId, byte[] dataToSend, bool directlyWithoutSpooler = false) => CommandsForRouter.SendCommandToServer(Protocol.Command.Data, dataToSend, chatId, dataFlags: directlyWithoutSpooler ? DataFlags.DirectlyWithoutSpooler : DataFlags.None);
+
+        /// <summary>
+        /// Sends a data packet addressed to the router/server. This data packet will be interpreted by the router based on the function that is passed to the router when it is initialized. If no function is passed during initialization, sending data to the router will have no effect.
+        /// </summary>
+        /// <param name="dataToSend"></param>
+        public void SendRouterData(byte[] dataToSend)
+        {
+            CommandsForRouter.SendCommandToServer(Protocol.Command.RouterData, dataToSend, null, dataFlags: DataFlags.DirectlyWithoutSpooler);
         }
 
         /// <summary>
@@ -113,7 +153,7 @@ namespace CommunicationChannel
         /// <summary>
         /// Use this command to re-establish the connection if it is disabled by the timer set with the initialization
         /// </summary>
-        public static void ReEstablishConnection()
+        public void ReEstablishConnection()
         {
             lock (Channels)
                 foreach (var channel in Channels)
@@ -165,6 +205,7 @@ namespace CommunicationChannel
                     return;
                 }
                 var dataId = BitConverter.ToUInt32(incomingData, 1);
+                OnDataDeliveryConfirm?.Invoke(dataId);
                 DataIO.WaitConfirmationSemaphore.Set();
                 DataIO.ProcessSendQueue();
             }
@@ -210,7 +251,7 @@ namespace CommunicationChannel
             }
             else if (command == Protocol.Command.RouterData)
             {
-                OnDataRouter?.Invoke(incomingData);
+                OnDataRouterReceived?.Invoke(incomingData);
             }
             error = null;
         }
@@ -258,7 +299,7 @@ namespace CommunicationChannel
             }
             else
             {
-                OnMessageArrives?.Invoke(chatId, post);
+                OnMessageReceived?.Invoke(chatId, post);
             }
         }
 
@@ -331,7 +372,7 @@ namespace CommunicationChannel
         /// Function that acts as an event and will be called when the connection was successful and the client is logged into the router (return true), or when the connection with the router is lost (return false). You can set this action as an event.
         /// You can set this action as an event.
         /// </summary>
-        public Action<bool> OnRouterConnectionChange;
+        public Action<bool> OnRouterConnectionChange { get; set; }
 
         /// <summary>
         /// Set this true if you want a ErrorLog
@@ -343,15 +384,13 @@ namespace CommunicationChannel
         /// Action to refresh error log.
         /// </summary>
         public event Action<string> RefreshLogError;
+
         internal string StatusDescription; //is multi line text 
         /// <summary>
-        /// TCP client exists
+        /// Data client exists
         /// </summary>
         public bool ClientExists => DataIO.Client != null;
-        /// <summary>
-        /// TCP client connection status 
-        /// </summary>
-        public bool ClientConnected => DataIO.Client != null && DataIO.Client.IsConnected;
+
         /// <summary>
         /// Client log in status
         /// </summary>
@@ -364,6 +403,7 @@ namespace CommunicationChannel
         /// <summary>
         /// Number of posts
         /// </summary>
+
         public int PostCounter;
         /// <summary>
         /// Number of duplicate post
@@ -457,46 +497,13 @@ namespace CommunicationChannel
         }
 
         internal ErrorType Status;
-        internal readonly Action<ulong, byte[]> OnMessageArrives;
+        public Action<ulong, byte[]> OnMessageReceived { get; set; }
 
         /// <summary>
         /// Programmable event that is executed when receiving network data generated by the router/server (these are not messages from devices connected to the netrokr). The method that is set here must interpret this type of messages and handle them.
         /// </summary>
-        public Action<byte[]> OnDataRouter;
-        private static bool SplitAllPosts(byte[] data, out List<byte[]> posts)
-        {
-            posts = new List<byte[]>();
-            try
-            {
-                var p = 0;
-                if (data.Length > 0)
-                {
-                    do
-                    {
-                        var len = Converter.BytesToInt(data.Skip(p).Take(4));
-                        p += 4;
-                        if (len < 0 || len + p > data.Length)
-                        {
-                            //Unexpected data length
-#if DEBUG && !TEST
-                            Debugger.Break();
-#endif
-                            return false;
-                        }
-                        var post = new byte[len];
-                        Buffer.BlockCopy(data, p, post, 0, len);
-                        posts.Add(post); // post format: [1] version, [2][3][4][5] UNIX timestamp, [7] data type 
-                        p += len;
-                    } while (p < data.Length);
-                }
-                return p == data.Length;
+        public Action<byte[]> OnDataRouterReceived { get; set; }
 
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
         /// <summary>
         /// The Dispose method is primarily implemented to release unmanaged resources. When working with instance members that are IDisposable implementations, it's common to cascade Dispose calls. There are additional reasons for implementing Dispose, for example, to free memory that was allocated, remove an item that was added to a collection, or signal the release of a lock that was acquired.
         /// </summary>
@@ -504,7 +511,7 @@ namespace CommunicationChannel
         {
             _dataReceivesQueue.Clear();
             OnRouterConnectionChange = null;
-            OnDataRouter = null;
+            OnDataRouterReceived = null;
             RefreshLogError = null;
             DataIO.Dispose();
         }

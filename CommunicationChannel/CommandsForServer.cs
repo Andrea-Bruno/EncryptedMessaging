@@ -20,7 +20,7 @@ namespace CommunicationChannel
         /// <summary>
         /// DataFlags indicate additional instructions on how the router should handle this data and its routing.
         /// </summary>
-        internal enum DataFlags
+        public enum DataFlags : byte
         {
             None = 0,
             DirectlyWithoutSpooler = 1, // Flag indicating that data will be sent directly to the recipient if connected, otherwise it will be lost
@@ -57,28 +57,10 @@ namespace CommunicationChannel
         }
 
         /// <summary>
-        /// Send data to the server/router.
-        /// Sends a data packet that the server/router will resend to its destination.
-        /// </summary>
-        /// <param name="chatId">chat to which data belong to</param>
-        /// <param name="dataToSend">data</param>
-        /// <param name="directlyWithoutSpooler"> if you want to send directly without spooler make it true else false </param>
-        public void SendPostToServer(ulong chatId, byte[] dataToSend, bool directlyWithoutSpooler = false) => SendCommandToServer(Protocol.Command.Data, dataToSend, chatId, dataFlags: directlyWithoutSpooler ? DataFlags.DirectlyWithoutSpooler : DataFlags.None);
-
-        /// <summary>
-        /// Sends a data packet addressed to the router/server. This data packet will be interpreted by the router based on the function that is passed to the router when it is initialized. If no function is passed during initialization, sending data to the router will have no effect.
-        /// </summary>
-        /// <param name="dataToSend"></param>
-        public void SendRouterData(byte[] dataToSend)
-        {
-            SendCommandToServer(Protocol.Command.RouterData, dataToSend, null, dataFlags: DataFlags.DirectlyWithoutSpooler);
-        }
-
-        /// <summary>
         /// Confirmation that data is received at the server side.
         /// </summary>
         /// <param name="dataReceived">Data to received confirmation</param>
-        public void DataReceivedConfirmation(byte[] dataReceived) => SendCommandToServer(Protocol.Command.DataReceivedConfirmation, Utility.DataIdBinary(dataReceived), dataFlags: DataFlags.DirectlyWithoutSpooler);
+        internal void DataReceivedConfirmation(byte[] dataReceived) => SendCommandToServer(Protocol.Command.DataReceivedConfirmation, Utility.DataIdBinary(dataReceived), dataFlags: DataFlags.DirectlyWithoutSpooler);
 
     }
 }

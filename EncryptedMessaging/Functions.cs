@@ -245,6 +245,12 @@ namespace EncryptedMessaging
                 datas.Add(part);
                 offset += len;
             }
+#if DEBUG
+            if (offset != data.Length)
+            {
+                Debugger.Break(); // The data is not complete!
+            }
+#endif
             return datas;
         }
 
