@@ -38,7 +38,7 @@ namespace EncryptedMessaging.DataChannel
         /// <summary>
         /// Indicates whether the channel is available for use.
         /// </summary>
-        public new static bool HasConnectivity => IsAvailable;
+        public override bool HasConnectivity => IsAvailable;
 
         static Dictionary<ulong, MemoryDataChannel> Instances;
 
