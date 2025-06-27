@@ -15,7 +15,7 @@ namespace CommunicationChannel
         /// <param name="id">Allows the use of multiple instances</param>
         public AntiDuplicate(ulong id)
 		{
-			HashFile = id.ToString("x") + "_hashs.bin";
+			HashFile = id.ToString("x16") + "_hashs.bin";
             Load();
 		}
 		private readonly List<byte[]> HashList = new List<byte[]>();

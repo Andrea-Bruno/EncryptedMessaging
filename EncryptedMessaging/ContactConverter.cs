@@ -140,12 +140,10 @@ namespace EncryptedMessaging
                 return false;
             try
             {
-                using (var csp = new CryptoServiceProvider())
+                using var csp = new CryptoServiceProvider();
+                foreach (var key in participants)
                 {
-                    foreach (var key in participants)
-                    {
-                        csp.ImportCspBlob(key);
-                    }
+                    csp.ImportCspBlob(key);
                 }
                 return true;
             }
@@ -196,11 +194,9 @@ namespace EncryptedMessaging
                 return false;
             try
             {
-                using (var csp = new CryptoServiceProvider())
-                {
-                    csp.ImportCspBlob(key);
-                    return csp.IsValid();
-                }
+                using var csp = new CryptoServiceProvider();
+                csp.ImportCspBlob(key);
+                return csp.IsValid();
             }
             catch (Exception)
             {

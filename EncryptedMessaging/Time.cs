@@ -17,12 +17,11 @@ namespace EncryptedMessaging
         private static TimeSpan Delta = new TimeSpan(long.MinValue);
 
         /// <summary>
-        /// Get current time & time based on system timezone.
+        /// Get current time and time based on system timezone.
         /// </summary>
-        /// <returns>Current time & time, or null If there is no internet connection</returns>
+        /// <returns>Current time and time, or null If there is no Internet connection</returns>
         public static DateTime GetCurrentTimeGMT(out bool? internetConnectionError)
         {
-            bool detected;
             lock (Environment.OSVersion)
             {
                 if (!Detected)
@@ -36,7 +35,6 @@ namespace EncryptedMessaging
                 }
                 else
                 {
-                    detected = false;
                     internetConnectionError = null;
                 }
             }
@@ -78,22 +76,20 @@ namespace EncryptedMessaging
 
         private static DateTime? GetDateTimeFromWeb(Uri fromWebsite)
         {
-            using (var client = new HttpClient())
+            using var client = new HttpClient();
+            try
             {
-                try
-                {
-                    var cancellationTokenSource = new CancellationTokenSource();
-                    cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(1));
-                    var result = client.GetAsync(fromWebsite, HttpCompletionOption.ResponseHeadersRead, cancellationTokenSource.Token).Result;
-                    if (result.Headers?.Date != null)
-                        return result.Headers?.Date.Value.UtcDateTime.AddMilliseconds(366); // for stats the time of website have a error of 366 ms; 					
-                }
-                catch
-                {
-                    // ignored
-                }
-                return null;
+                var cancellationTokenSource = new CancellationTokenSource();
+                cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(1));
+                var result = client.GetAsync(fromWebsite, HttpCompletionOption.ResponseHeadersRead, cancellationTokenSource.Token).Result;
+                if (result.Headers?.Date != null)
+                    return result.Headers?.Date.Value.UtcDateTime.AddMilliseconds(366); // for stats the time of website have a error of 366 ms; 					
             }
+            catch
+            {
+                // ignored
+            }
+            return null;
         }
         private static bool UpdateSystemDate(DateTime newDateTimeUtc, int toleranceSec = 2)
         {

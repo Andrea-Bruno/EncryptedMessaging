@@ -18,17 +18,29 @@ namespace EncryptedMessaging
             Context = context;
             CounterTask = 1 + (getFirebaseToken == null ? 0 : 1) + (getAppleDeviceToken == null ? 0 : 1); // Create a countdown to check when all tasks have finished
             if (getFirebaseToken != null)
-                Task.Run(() =>
+                if (Debugger.IsAttached)
                 {
                     FirebaseToken = getFirebaseToken();
                     CheckUpdateTheNotificationKeyToMyContacts();
-                });
+                }
+                else
+                    Task.Run(() =>
+                        {
+                            FirebaseToken = getFirebaseToken();
+                            CheckUpdateTheNotificationKeyToMyContacts();
+                        });
             if (getAppleDeviceToken != null)
-                Task.Run(() =>
+                if (Debugger.IsAttached)
                 {
                     DeviceToken = getAppleDeviceToken();
                     CheckUpdateTheNotificationKeyToMyContacts();
-                });
+                }
+                else
+                    Task.Run(() =>
+                        {
+                            DeviceToken = getAppleDeviceToken();
+                            CheckUpdateTheNotificationKeyToMyContacts();
+                        });
         }
         private int CounterTask; // Create a countdown to check when all tasks have finished In order to perform operations that must be performed at the end of all initialization tasks
 

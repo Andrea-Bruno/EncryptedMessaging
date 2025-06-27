@@ -21,8 +21,9 @@ namespace CommunicationChannel.DataConnection
         {
             int portInt = port ?? 0;
             _client = new TcpClient
-            {               
+            {
                 LingerState = new LingerOption(true, 0), // Close the connection immediately after the Close() method
+                NoDelay = true, // Reduces latency
             };
             _client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             return _client.ConnectAsync(address, portInt).Wait(timeOutMs); // ms timeout

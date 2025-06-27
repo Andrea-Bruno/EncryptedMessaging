@@ -86,7 +86,7 @@ namespace CommunicationChannel.DataIO
         public void Dispose()
         {
             _disposed = true;
-            Disconnect();
+            _sendQueue.Clear();
             TryReconnection?.Change(Timeout.Infinite, Timeout.Infinite);
             TryReconnection?.Dispose();
             TimerAutoDisconnect?.Change(Timeout.Infinite, Timeout.Infinite);
