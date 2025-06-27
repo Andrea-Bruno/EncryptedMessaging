@@ -203,33 +203,48 @@ namespace EncryptedMessaging.DataChannel
             request.ContentType = "application/octet-stream";
             request.ContentLength = data.Length;
             bool succssful = true;
-            try
+            int attempts = 0;
+            const int maxAttempts = 5;
+            while (attempts < maxAttempts)
             {
-                using (Stream requestStream = request.GetRequestStream())
+                try
                 {
-                    requestStream.Write(data, 0, data.Length);
-                }
-                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
-                {
-                    if (response.StatusCode != HttpStatusCode.OK)
+                    attempts++;
+                    using (Stream requestStream = request.GetRequestStream())
                     {
+                        requestStream.Write(data, 0, data.Length);
+                    }
+                    using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                    {
+                        if (response.StatusCode != HttpStatusCode.OK)
+                        {
+                            succssful = false;
+                            Debugger.Break();
+                        }
+                        using (Stream responseStream = response.GetResponseStream())
+                        using (MemoryStream memoryStream = new MemoryStream())
+                        {
+                            responseStream.CopyTo(memoryStream);
+                            var res = memoryStream.ToArray();
+
+                        }
+                    }
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    if (attempts < maxAttempts)
+                    {
+                        Thread.Sleep(200 * attempts);
+                    }
+                    else
+                    {
+                        OnError?.Invoke(ErrorType.SendDataError, ex.Message);
                         succssful = false;
                         Debugger.Break();
                     }
-                    using (Stream responseStream = response.GetResponseStream())
-                    using (MemoryStream memoryStream = new MemoryStream())
-                    {
-                        responseStream.CopyTo(memoryStream);
-                        var res = memoryStream.ToArray();
 
-                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                OnError?.Invoke(ErrorType.SendDataError, ex.Message);
-                succssful = false;
-                Debugger.Break();
             }
             if (succssful)
             {

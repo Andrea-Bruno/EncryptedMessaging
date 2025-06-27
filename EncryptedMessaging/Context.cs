@@ -182,14 +182,14 @@ namespace EncryptedMessaging
             IsRestored = !string.IsNullOrEmpty(privateKeyOrPassphrase);
             if (!IsDisposed)
                 ThreadPool.QueueUserWorkItem(RunAfterInstanceCreate);
-            if (isConnected)
+            if (isConnected && Channel.Logged)
                 ThreadPool.QueueUserWorkItem((_) => InvokeOnRouterConnectionChange(true));
         }
 
         /// <summary>
-        /// The unique identifier of the network, it is used to identify the network in which the client is connected.
+        /// If true the default connection with the router will be of the Pull Push type, otherwise the TCP type will be used.
         /// </summary>
-        static public bool UsePullPushDataChannel { get; set; } = false;
+        static public bool UsePullPushDataChannel { get; set; } = true;
         public Action<byte[]> OnDataRouter { set { Channel.OnDataRouterReceived = value; } }
 
         public bool LicenseExpired { get { return Channel != null && Channel.LicenseExpired; } }
@@ -575,7 +575,7 @@ namespace EncryptedMessaging
         /// <summary>
         /// Returns the current status of the connection with the router/server
         /// </summary>
-        public bool IsConnected => Channel != null && Channel.IsConnected;
+        public bool IsConnected => Channel?.IsConnected == true;
 
         public bool HasConnectivity => Channel != null && Channel?.HasConnectivity == true;
 

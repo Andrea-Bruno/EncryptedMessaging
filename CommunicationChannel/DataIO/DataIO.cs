@@ -239,7 +239,6 @@ namespace CommunicationChannel.DataIO
 
         internal void OnLoggedCompleted()
         {
-
             watchLogin.Stop();
 #if DEBUG && !TSET
             var alletsLimitMs = Client is TcpClientConnection ? 500 : 15000;

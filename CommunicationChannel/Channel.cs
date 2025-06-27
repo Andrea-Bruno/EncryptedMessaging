@@ -165,7 +165,7 @@ namespace CommunicationChannel
         /// checks the connection status.
         /// </summary>
         /// <returns>True or False</returns>
-        public bool IsConnected { get; private set; }
+        public bool IsConnected => DataIO.IsConnected();
 
         /// <summary>
         /// server URL.
@@ -358,13 +358,9 @@ namespace CommunicationChannel
 
         internal void ConnectionChange(bool status)
         {
-            if (IsConnected != status)
+            if (OnRouterConnectionChange != null)
             {
-                IsConnected = status;
-                if (OnRouterConnectionChange != null)
-                {
-                    Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
-                }
+                Task.Run(() => OnRouterConnectionChange?.Invoke(IsConnected));
             }
         }
 
