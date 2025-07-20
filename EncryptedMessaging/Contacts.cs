@@ -572,6 +572,16 @@ namespace EncryptedMessaging
         }
 
         /// <summary>
+        /// Check if the address book already contains a contact with a given public key
+        /// </summary>
+        /// <param name="publicKeys">Public key</param>
+        public bool Contains(string publicKeys)
+        {
+            var contact = ContactsList.ToList().Find(x => x.PublicKeys == publicKeys);
+            return contact != null;
+        }
+
+        /// <summary>
         /// Clear the chat history with the contact.
         /// </summary>
         /// <param name="key">Public key</param>
