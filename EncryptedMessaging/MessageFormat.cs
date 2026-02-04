@@ -1,9 +1,10 @@
-﻿using System;
+﻿using EncryptedMessaging.Resources;
+using SecureStorage;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
-using EncryptedMessaging.Resources;
-using SecureStorage;
 using static CommunicationChannel.Converter;
 
 namespace EncryptedMessaging
@@ -637,13 +638,21 @@ namespace EncryptedMessaging
                 postData = postData.Combine(GetBytes(id));
 
             //usersId.ForEach((id) => postData = postData.Combine(GetBytes(id)));
-            var myId = _context.My.Id; ;
+            var myId = _context.My.Id;
             byte authorIndex = 0;
+            var idCheck = false;
             for (byte i = 0; i < usersId.Length; i++)
             {
                 if (usersId[i] == myId)
+                {
                     authorIndex = i;
+                    idCheck = true;
+                }
             }
+#if DEBUG
+            if (!idCheck)
+                Debugger.Break(); // My user ID is not present in the participants list
+#endif
             if (!encrypted)
             {
                 postData = postData.Combine(new[] { authorIndex }, data);
@@ -653,10 +662,24 @@ namespace EncryptedMessaging
                 var password = Guid.NewGuid().ToByteArray().Combine(Guid.NewGuid().ToByteArray()); //32 byte password
                 var globalPassword = EncryptPasswordForParticipants(password, participants);
                 var hashData = CryptoServiceProvider.ComputeHash(data);
-
                 var signatureOfData = _context.My.Csp.SignHash(hashData);
 
                 // 1 byte Index participant of signature + signature + 1 bite signature length
+
+#if DEBUG
+                // Validate signature at source using the public key that will be in the packet
+                using (var csp = new CryptoServiceProvider(participants[authorIndex]))
+                {
+                    if (!csp.VerifyHash(hashData, signatureOfData))
+                    {
+                        Debug.WriteLine($"SIGNATURE VALIDATION FAILED AT SOURCE!");
+                        Debug.WriteLine($"Author Index: {authorIndex}");
+                        Debug.WriteLine($"Participant Key (Base64): {Convert.ToBase64String(participants[authorIndex])}");
+                        Debug.WriteLine($"My Public Key (Base64): {Convert.ToBase64String(_context.My.Csp.ExportCspBlob(false))}");
+                        Debugger.Break();
+                    }
+                }
+#endif
 
                 var encryptedData = Cryptography.Encrypt(data.Combine(new[] { authorIndex }, signatureOfData, new[] { (byte)signatureOfData.Length }), password);
                 postData = postData.Combine(globalPassword, encryptedData);
