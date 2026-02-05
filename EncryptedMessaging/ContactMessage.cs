@@ -298,7 +298,7 @@ namespace EncryptedMessaging
 		public static string GetQrCode(Contact contact, Context context) => Convert.ToBase64String(GetDataMessageContact(contact, context));
 
 		/// <summary>
-		/// Get the contact onfo of the person using the app from base 64 string.
+		/// Get the contact info of the person using the app from base 64 string.
 		/// </summary>
 		/// <param name="context">context</param>
 		/// <returns></returns>

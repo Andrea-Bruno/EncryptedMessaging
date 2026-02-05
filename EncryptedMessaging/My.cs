@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SecureStorage;
@@ -79,22 +80,25 @@ namespace EncryptedMessaging
         {
             get
             {
-                if (_csp != null)
+                lock (Context)
+                {
+                    if (_csp != null)
+                        return _csp;
+                    var key = Context.SecureStorage.ObjectStorage.LoadObject(typeof(string), "MyPrivateKey") as string;
+                    if (!string.IsNullOrEmpty(key))
+                        _csp = new CryptoServiceProvider(Convert.FromBase64String(key));
+                    if (_csp?.IsValid() == false)
+                    {
+                        Debugger.Break(); // An invalid key was imported! We need to investigate!
+                        _csp = null;
+                    }
+                    if (_csp == null)
+                    {
+                        _csp = new CryptoServiceProvider();
+                        Context.SecureStorage.ObjectStorage.SaveObject(GetPrivateKey(), "MyPrivateKey");
+                    }
                     return _csp;
-                var key = Context.SecureStorage.ObjectStorage.LoadObject(typeof(string), "MyPrivateKey") as string;
-                if (!string.IsNullOrEmpty(key))
-                    _csp = new CryptoServiceProvider(Convert.FromBase64String(key));
-                if (_csp?.IsValid() == false)
-                {
-                    Debugger.Break(); // An invalid key was imported! We need to investigate!
-                    _csp = null;
                 }
-                if (_csp == null)
-                {
-                    _csp = new CryptoServiceProvider();
-                    Context.SecureStorage.ObjectStorage.SaveObject(GetPrivateKey(), "MyPrivateKey");
-                }
-                return _csp;
             }
         }
 
